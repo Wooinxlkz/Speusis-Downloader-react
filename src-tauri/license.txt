@@ -1,0 +1,17 @@
+SPEUSIS DOWNLOADER END-USER LICENSE AGREEMENT
+
+This agreement governs your use of Speusis Downloader ("the software"). By installing, you agree to the following terms.
+
+1. GRANT OF LICENSE. You are granted a free, non-exclusive, non-transferable license to install and use Speusis Downloader on any computer you own or control, for personal or commercial use.
+
+2. NO WARRANTY. Speusis Downloader is provided "as is" without warranty of any kind, express or implied, including but not limited to fitness for a particular purpose. The authors are not liable for any damages arising from use of the software.
+
+3. USER RESPONSIBILITY. Speusis Downloader downloads files at your explicit direction. You are solely responsible for the legality and safety of any content you choose to download. The software's built-in security scan is a convenience feature, not a guarantee.
+
+4. DATA AND PRIVACY. Speusis Downloader does not transmit your download history, files, or personal data to any remote server. Settings and download records are stored locally on your device only.
+
+5. UPDATES. Speusis Downloader may check for and offer updates. Installing updates is optional and requires your confirmation.
+
+6. UNINSTALLATION. You may uninstall Speusis Downloader at any time using the included uninstaller or Windows Settings.
+
+By clicking "I Agree" below, you confirm that you have read and agree to these terms.

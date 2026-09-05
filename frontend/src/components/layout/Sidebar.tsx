@@ -1,0 +1,217 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  Search,
+  FolderOpen,
+  CirclePlus,
+  Layers,
+  SearchCode,
+  ClipboardList,
+  ShoppingBasket,
+  LayoutGrid,
+  Archive,
+  FileText,
+  Music,
+  MonitorSmartphone,
+  Film,
+  Clock,
+  CheckCircle2,
+  ListOrdered,
+  HardDrive,
+  Settings as SettingsIcon,
+  Sun,
+  Moon,
+} from "lucide-react";
+import { useDownloadsStore } from "@/stores/downloads";
+import { useSettingsStore } from "@/stores/settings";
+import { useUIStore } from "@/stores/ui";
+import { useCategoryStore } from "@/stores/category";
+import { ipc } from "@/lib/ipc";
+import { revealCategory } from "@/lib/categorize";
+
+const EXT_GROUPS: Record<string, string[]> = {
+  compressed: ["zip", "rar", "7z", "tar", "gz"],
+  documents: ["pdf", "doc", "docx", "txt", "md", "xls", "xlsx", "ppt", "pptx"],
+  music: ["mp3", "flac", "wav", "aac", "ogg", "m4a"],
+  programs: ["exe", "msi", "dmg", "apk"],
+  video: ["mp4", "mkv", "avi", "mov", "webm"],
+};
+
+export function Sidebar() {
+  const tasks = useDownloadsStore((s) => s.tasks);
+  const { settings, update } = useSettingsStore();
+  const open = useUIStore((s) => s.open);
+  const openSettingsAt = useUIStore((s) => s.openSettingsAt);
+  const category = useCategoryStore((s) => s.category);
+  const setCategory = useCategoryStore((s) => s.set);
+  const [drives, setDrives] = useState<string[]>([]);
+
+  useEffect(() => {
+    ipc.settingsListDrives().then(setDrives).catch(() => setDrives([]));
+  }, []);
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {
+      all: tasks.length,
+      compressed: 0,
+      documents: 0,
+      music: 0,
+      programs: 0,
+      video: 0,
+      unfinished: 0,
+      finished: 0,
+      queues: 0,
+    };
+    for (const t of tasks) {
+      const group = revealCategory(t, EXT_GROUPS);
+      if (group) c[group]++;
+      if (t.status === "running" || t.status === "paused") c.unfinished++;
+      if (t.status === "completed") c.finished++;
+      if (t.status === "queued") c.queues++;
+    }
+    return c;
+  }, [tasks]);
+
+  const isDark = document.documentElement.classList.contains("dark");
+
+  return (
+    <aside className="flex h-full w-[250px] flex-shrink-0 flex-col border-r border-line-soft bg-panel">
+      <div data-tauri-drag-region className="h-[38px] flex-shrink-0" />
+
+      <div className="px-2 pb-2">
+        <button className="flex w-full items-center gap-2 rounded-md border border-line-soft bg-bg px-2.5 py-1.5 text-[12.5px] text-faint transition-colors hover:border-line hover:text-muted">
+          <Search size={14} />
+          <span>Search downloads…</span>
+          <span className="ml-auto rounded border border-line px-1 text-[10px] text-faint">
+            ⌘K
+          </span>
+        </button>
+      </div>
+
+      <SectionLabel>Speusis</SectionLabel>
+      <nav className="flex flex-col gap-px px-2">
+        <NavItem icon={<FolderOpen size={15} />} label="Folder" hint="⌘⇧F" onClick={() => ipc.settingsScanDownloadDir().catch(() => {})} />
+        <NavItem icon={<CirclePlus size={15} />} label="Add URL" hint="⌘N" active onClick={() => open("addUrl")} />
+        <NavItem icon={<Layers size={15} />} label="Torrent" hint="⌘T" onClick={() => open("openTorrent")} />
+        <NavItem icon={<SearchCode size={15} />} label="Grabber" hint="⌘G" onClick={() => open("grabber")} />
+        <NavItem icon={<ClipboardList size={15} />} label="Batch" hint="⌘B" onClick={() => open("batch")} />
+        <NavItem icon={<ShoppingBasket size={15} />} label="Basket" hint="⌘E" onClick={() => ipc.basketOpen().catch(() => {})} />
+      </nav>
+
+      <SectionLabel>Downloads</SectionLabel>
+      <div className="flex flex-col gap-px px-2">
+        <TreeItem icon={<LayoutGrid size={14} />} label="All Downloads" count={counts.all} selected={category === "all"} onClick={() => setCategory("all")} />
+        <TreeItem icon={<Archive size={14} />} label="Compressed" count={counts.compressed} selected={category === "compressed"} onClick={() => setCategory("compressed")} />
+        <TreeItem icon={<FileText size={14} />} label="Documents" count={counts.documents} selected={category === "documents"} onClick={() => setCategory("documents")} />
+        <TreeItem icon={<Music size={14} />} label="Music" count={counts.music} selected={category === "music"} onClick={() => setCategory("music")} />
+        <TreeItem icon={<MonitorSmartphone size={14} />} label="Programs" count={counts.programs} selected={category === "programs"} onClick={() => setCategory("programs")} />
+        <TreeItem icon={<Film size={14} />} label="Video" count={counts.video} selected={category === "video"} onClick={() => setCategory("video")} />
+      </div>
+
+      <SectionLabel>Status</SectionLabel>
+      <div className="flex flex-col gap-px px-2">
+        <TreeItem icon={<Clock size={14} />} label="Unfinished" count={counts.unfinished} selected={category === "unfinished"} onClick={() => setCategory("unfinished")} />
+        <TreeItem icon={<CheckCircle2 size={14} />} label="Finished" count={counts.finished} selected={category === "finished"} onClick={() => setCategory("finished")} />
+        <TreeItem icon={<ListOrdered size={14} />} label="Queues" count={counts.queues} selected={category === "queues"} onClick={() => setCategory("queues")} />
+      </div>
+
+      {drives.length > 0 && (
+        <>
+          <SectionLabel>Drives</SectionLabel>
+          <div className="flex flex-col gap-px px-2">
+            {drives.map((d) => (
+              <TreeItem key={d} icon={<HardDrive size={14} />} label={d} />
+            ))}
+          </div>
+        </>
+      )}
+
+      <div className="flex-1" />
+
+      <div className="flex items-center gap-1.5 border-t border-line-soft p-2">
+        <button
+          onClick={() => openSettingsAt("general")}
+          className="flex h-[30px] flex-1 items-center gap-2 rounded-md px-2 text-[13px] text-muted transition-colors hover:bg-hover hover:text-ink"
+        >
+          <SettingsIcon size={15} />
+          <span>Settings</span>
+          <span className="ml-auto text-[10px] text-faint">⌘,</span>
+        </button>
+        <button
+          onClick={() => update({ themeMode: isDark ? "light" : "dark" })}
+          className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-hover hover:text-ink"
+        >
+          {isDark ? <Moon size={15} /> : <Sun size={15} />}
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <div className="px-4 pb-1.5 pt-2.5 text-[10.5px] font-semibold uppercase tracking-wide text-faint">
+      {children}
+    </div>
+  );
+}
+
+function NavItem({
+  icon,
+  label,
+  hint,
+  active,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint?: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex h-[30px] w-full items-center gap-2.5 rounded-md px-2 text-left text-[13px] font-medium transition-colors ${
+        active ? "bg-hover text-ink" : "text-muted hover:bg-hover hover:text-ink"
+      }`}
+    >
+      <span className="opacity-85">{icon}</span>
+      <span>{label}</span>
+      {hint && <span className="ml-auto text-[10px] text-faint">{hint}</span>}
+    </button>
+  );
+}
+
+function TreeItem({
+  icon,
+  label,
+  count,
+  selected,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  count?: number;
+  selected?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className={`flex h-7 cursor-pointer items-center gap-2 rounded-md px-2 text-[13px] transition-colors ${
+        selected ? "bg-active font-medium text-ink" : "text-muted hover:bg-hover hover:text-ink"
+      }`}
+    >
+      <span className="opacity-80">{icon}</span>
+      <span className="truncate">{label}</span>
+      {!!count && (
+        <span
+          className={`ml-auto rounded-full px-1.5 text-[10.5px] ${selected ? "bg-panel" : "bg-sunken"} text-faint`}
+        >
+          {count}
+        </span>
+      )}
+    </div>
+  );
+}
+

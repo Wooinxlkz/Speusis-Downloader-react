@@ -1,0 +1,161 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  :where(button, a, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+  }
+}
+
+@theme inline {
+  --font-sans:
+    "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono:
+    "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-hover: var(--hover);
+  --color-active: var(--active);
+  --color-invert: var(--invert);
+  --color-invert-ink: var(--invert-ink);
+  --color-brand: var(--accent, var(--invert));
+  --color-accent-indicator: var(--accent-indicator);
+  --color-accent-ink: var(--accent-ink);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-line: var(--success-line);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-line: var(--info-line);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-line: var(--warning-line);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root {
+  --bg: #fbfbfa;
+  --panel: #f4f4f2;
+  --sunken: #e9e9e6;
+  --ink: #191919;
+  --muted: #6e6e6a;
+  --faint: #a3a39e;
+  --line: #e3e3e0;
+  --line-soft: #ececea;
+  --hover: rgba(25, 25, 25, 0.05);
+  --active: rgba(25, 25, 25, 0.09);
+  --invert: #1c1c1c;
+  --invert-ink: #fbfbfa;
+  --accent-indicator: transparent;
+  --accent-ink: var(--ink);
+  --danger: oklch(0.48 0.18 27);
+  --success: oklch(0.42 0.12 145);
+  --success-bg: oklch(0.95 0.04 145);
+  --success-line: oklch(0.79 0.1 145);
+  --info: oklch(0.44 0.16 255);
+  --info-bg: oklch(0.95 0.035 255);
+  --info-line: oklch(0.8 0.09 255);
+  --warning: oklch(0.45 0.11 75);
+  --warning-bg: oklch(0.96 0.05 85);
+  --warning-line: oklch(0.82 0.11 80);
+}
+
+.dark {
+  --bg: #1a1a1a;
+  --panel: #151515;
+  --sunken: #0f0f0f;
+  --ink: #ebebe8;
+  --muted: #8f8f8a;
+  --faint: #64645f;
+  --line: #292927;
+  --line-soft: #202020;
+  --hover: rgba(235, 235, 232, 0.06);
+  --active: rgba(235, 235, 232, 0.1);
+  --invert: #ebebe8;
+  --invert-ink: #131313;
+  --accent-indicator: transparent;
+  --accent-ink: var(--ink);
+  --danger: oklch(0.7 0.17 25);
+  --success: oklch(0.82 0.13 145);
+  --success-bg: oklch(0.72 0.14 145 / 0.14);
+  --success-line: oklch(0.78 0.13 145 / 0.3);
+  --info: oklch(0.78 0.12 255);
+  --info-bg: oklch(0.65 0.15 255 / 0.14);
+  --info-line: oklch(0.75 0.13 255 / 0.3);
+  --warning: oklch(0.84 0.13 80);
+  --warning-bg: oklch(0.72 0.14 80 / 0.14);
+  --warning-line: oklch(0.8 0.13 80 / 0.3);
+}
+
+/* Accent presets - selected in Settings -> Appearance, persisted via
+   settings_update({ accentColor }) and applied as data-accent on <html>. */
+:root[data-accent="blue"] {
+  --accent: oklch(0.55 0.16 255);
+  --accent-indicator: var(--accent);
+  --accent-ink: var(--accent);
+}
+:root[data-accent="green"] {
+  --accent: oklch(0.5 0.13 150);
+  --accent-indicator: var(--accent);
+  --accent-ink: var(--accent);
+}
+:root[data-accent="amber"] {
+  --accent: oklch(0.62 0.17 55);
+  --accent-indicator: var(--accent);
+  --accent-ink: var(--accent);
+}
+:root[data-accent="violet"] {
+  --accent: oklch(0.5 0.17 300);
+  --accent-indicator: var(--accent);
+  --accent-ink: var(--accent);
+}
+:root[data-accent="rose"] {
+  --accent: oklch(0.55 0.19 25);
+  --accent-indicator: var(--accent);
+  --accent-ink: var(--accent);
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Press feedback shared by every button in the app (mirrors Xuro's
+   whileTap scale used across its buttons/Modal.tsx triggers). */
+button:not(:disabled):active {
+  transform: scale(0.97);
+  transition: transform 0.1s var(--ease-out);
+}

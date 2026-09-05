@@ -1,0 +1,29 @@
+[package]
+name = "speusis"
+version = "0.1.0"
+description = "Speusis Downloader - IDM-style hybrid download manager (Tauri/Rust port)"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+speusis-core = { path = "../speusis-core" }
+tauri = { version = "2", features = ["tray-icon", "devtools"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-global-shortcut = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["stream", "json"] }
+open = "5"            # cross-platform "open file/folder" (replaces shell.openPath)
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

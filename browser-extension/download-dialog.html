@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Speusis — Download</title>
+  <style>
+    :root{
+      --bg:       #09090b;
+      --surface:  #18181b;
+      --surface2: #27272a;
+      --border:   #3f3f46;
+      --border2:  #52525b;
+      --text:     #fafafa;
+      --muted:    #a1a1aa;
+      --ring:     #71717a;
+      --green:    #4ade80;
+      --red:      #f87171;
+      --radius:   6px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{
+      font-family:"Segoe UI",system-ui,sans-serif;font-size:13px;
+      background:var(--bg);color:var(--text);
+      height:100vh;overflow:hidden;display:flex;flex-direction:column;
+    }
+
+    /* Titlebar */
+    .titlebar{
+      background:var(--surface);border-bottom:1px solid var(--border);
+      padding:10px 14px;display:flex;align-items:center;gap:9px;flex-shrink:0;
+    }
+    .titlebar-title{font-size:13px;font-weight:600;}
+    .titlebar-version{
+      margin-left:auto;font-size:11px;color:var(--muted);
+      background:var(--surface2);border:1px solid var(--border);
+      border-radius:4px;padding:1px 7px;
+    }
+
+    /* Video section */
+    body.quality-mode .content{display:none;}
+    body.quality-mode .btn-bar .btn-primary,
+    body.quality-mode .btn-bar .btn-secondary{display:none;}
+    #videoSection{display:none;flex-direction:column;flex:1;min-height:0;}
+    .video-main-row{display:flex;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);}
+    .video-dl-btn{
+      display:flex;align-items:center;gap:8px;flex:1;
+      padding:9px 14px;background:transparent;
+      border:none;border-right:1px solid var(--border);
+      color:var(--text);font-weight:600;font-size:13px;font-family:inherit;
+      cursor:pointer;text-align:left;transition:background .12s;
+    }
+    .video-dl-btn:hover{background:var(--surface2);}
+    .quality-profile{
+      background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+      color:var(--text);font:inherit;font-size:11px;padding:4px 6px;max-width:132px;
+    }
+    .video-help-btn,.video-close-btn{
+      background:none;border:none;color:var(--muted);cursor:pointer;
+      font-size:13px;padding:9px 10px;line-height:1;transition:color .12s;
+    }
+    .video-help-btn:hover,.video-close-btn:hover{color:var(--text);}
+    .video-dl-all{
+      display:flex;align-items:center;gap:6px;padding:6px 14px;
+      background:var(--surface2);color:var(--muted);font-size:11px;font-weight:600;
+      cursor:pointer;border-bottom:1px solid var(--border);
+      transition:background .12s;user-select:none;
+    }
+    .video-dl-all:hover{background:var(--border);}
+    .video-dl-all .chevron{margin-left:auto;transition:transform .18s;flex-shrink:0;}
+    .video-dl-all.collapsed .chevron{transform:rotate(-90deg);}
+    .video-quality-list.collapsed{display:none;}
+    .video-quality-list{flex:1;min-height:0;overflow-y:auto;background:var(--bg);}
+    .video-quality-list::-webkit-scrollbar{width:5px;}
+    .video-quality-list::-webkit-scrollbar-track{background:var(--bg);}
+    .video-quality-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+    .vq-row{
+      display:flex;align-items:center;gap:8px;
+      padding:10px 14px;border-bottom:1px solid rgba(63,63,70,.4);
+      cursor:pointer;transition:background .1s;
+    }
+    .vq-row:hover{background:var(--surface);}
+    .vq-row.recommended{background:rgba(74,222,128,.08);box-shadow:inset 2px 0 var(--green);}
+    .vq-num{color:var(--muted);font-size:11px;min-width:16px;flex-shrink:0;font-weight:600;}
+    .vq-info{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--muted);}
+    .vq-info strong{color:var(--text);}
+    .vq-badge{
+      background:var(--surface2);border:1px solid var(--border2);
+      border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700;
+      color:var(--text);flex-shrink:0;
+    }
+    .vq-badge.hls{background:#7f1d1d;border-color:#ef4444;}
+    .vq-badge.dash{background:#3b0764;border-color:#a855f7;}
+    .vq-dl-btn{
+      background:var(--surface2);border:1px solid var(--border);
+      color:var(--text);border-radius:var(--radius);
+      padding:3px 10px;cursor:pointer;font-size:11px;font-weight:600;
+      flex-shrink:0;font-family:inherit;transition:background .12s;
+    }
+    .vq-dl-btn:hover{background:var(--border);}
+
+    /* Content */
+    .content{display:flex;flex:1;overflow:hidden;}
+    .form-area{
+      flex:1;padding:14px 16px;display:flex;
+      flex-direction:column;gap:10px;overflow-y:auto;
+    }
+    .form-area::-webkit-scrollbar{width:4px;}
+    .form-area::-webkit-scrollbar-track{background:var(--bg);}
+    .form-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+    /* File preview */
+    .file-preview{
+      width:100px;flex-shrink:0;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:6px;padding:12px 8px;
+      background:var(--surface);border-left:1px solid var(--border);
+    }
+    .file-size{font-size:11px;color:var(--muted);text-align:center;line-height:1.4;word-break:break-all;}
+
+    /* Form fields */
+    .field{display:grid;grid-template-columns:82px 1fr;gap:8px;align-items:center;}
+    .field label{color:var(--muted);font-size:12px;text-align:right;padding-right:2px;}
+    .field input,.field select{
+      background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+      color:var(--text);padding:5px 9px;font:inherit;font-size:12px;outline:none;width:100%;
+      transition:border-color .12s;
+    }
+    .field input:focus,.field select:focus{border-color:var(--ring);box-shadow:0 0 0 2px rgba(113,113,122,.2);}
+    .field input[readonly]{color:var(--muted);}
+    .field-inline{display:flex;gap:4px;align-items:center;}
+    .field-inline input{flex:1;}
+    .btn-browse{
+      padding:5px 10px;background:var(--surface2);border:1px solid var(--border);
+      border-radius:var(--radius);color:var(--text);cursor:pointer;font-size:12px;
+      white-space:nowrap;flex-shrink:0;transition:background .12s;
+    }
+    .btn-browse:hover{background:var(--border);}
+    .select-row{display:flex;gap:4px;}
+    .select-row select{flex:1;}
+    .btn-add-cat{
+      padding:5px 10px;background:var(--surface2);border:1px solid var(--border);
+      border-radius:var(--radius);color:var(--text);cursor:pointer;
+      font-size:15px;font-weight:700;line-height:1;flex-shrink:0;transition:background .12s;
+    }
+    .btn-add-cat:hover{background:var(--border);}
+    .checkbox-row{
+      display:flex;align-items:center;gap:6px;
+      margin-left:90px;font-size:12px;color:var(--muted);
+    }
+    .checkbox-row input[type="checkbox"]{accent-color:var(--text);width:13px;height:13px;cursor:pointer;}
+    .remember-box{
+      border:1px solid var(--border);border-radius:var(--radius);
+      padding:6px 10px;margin-left:90px;background:var(--surface);
+    }
+    .remember-box input{
+      background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+      color:var(--text);padding:4px 9px;font:inherit;font-size:11px;outline:none;width:100%;
+      transition:border-color .12s;
+    }
+    .remember-box input:focus{border-color:var(--ring);}
+    .notice{border-radius:var(--radius);padding:7px 11px;margin-left:90px;font-size:11px;line-height:1.5;}
+    .notice.yt{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);color:#fca5a5;}
+    .notice.tor{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);color:#fcd34d;}
+
+    /* Button bar */
+    .btn-bar{
+      display:flex;align-items:center;justify-content:flex-end;gap:8px;
+      padding:10px 14px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;
+    }
+    .btn{
+      padding:6px 16px;border-radius:var(--radius);border:1px solid var(--border);
+      cursor:pointer;font:inherit;font-size:12px;font-weight:500;
+      transition:background .12s,border-color .12s;
+    }
+    .btn-primary{background:#fafafa;color:#09090b;border-color:#fafafa;}
+    .btn-primary:hover{background:#e4e4e7;border-color:#e4e4e7;}
+    .btn-secondary{background:var(--surface2);color:var(--text);border-color:var(--border);}
+    .btn-secondary:hover{background:var(--border);}
+    .btn-cancel{background:transparent;color:var(--muted);border-color:var(--border);}
+    .btn-cancel:hover{background:var(--surface2);color:var(--text);}
+
+    #statusLine{font-size:11px;color:var(--muted);flex:1;display:flex;align-items:center;gap:5px;overflow:hidden;}
+    #statusLine.error{color:var(--red);}
+    #statusLine.success{color:var(--green);}
+    #statusText{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    #spinner{
+      display:none;flex-shrink:0;width:12px;height:12px;
+      border:2px solid var(--border2);border-top-color:var(--text);
+      border-radius:50%;animation:spin .7s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg);}}
+
+    /* Add-category modal */
+    .modal-overlay{
+      display:none;position:fixed;inset:0;
+      background:rgba(0,0,0,.65);backdrop-filter:blur(2px);
+      z-index:100;align-items:center;justify-content:center;
+    }
+    .modal-overlay.open{display:flex;}
+    .modal{
+      background:var(--surface);border:1px solid var(--border);border-radius:10px;
+      padding:20px;width:260px;display:flex;flex-direction:column;gap:12px;
+      box-shadow:0 16px 48px rgba(0,0,0,.6);
+    }
+    .modal h3{font-size:13px;font-weight:600;}
+    .modal input{
+      background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+      color:var(--text);padding:6px 10px;font:inherit;font-size:13px;outline:none;width:100%;
+      transition:border-color .12s;
+    }
+    .modal input:focus{border-color:var(--ring);box-shadow:0 0 0 2px rgba(113,113,122,.2);}
+    .modal-btns{display:flex;gap:8px;justify-content:flex-end;}
+    .modal-btns .btn{padding:5px 14px;font-size:12px;}
+  </style>
+</head>
+<body>
+
+  <div class="titlebar">
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
+      <path d="M10 4v8M6.5 9l3.5 4 3.5-4" stroke="#fafafa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="5" y1="15.5" x2="15" y2="15.5" stroke="#fafafa" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+    <span class="titlebar-title">Speusis — Download</span>
+    <span class="titlebar-version" id="titlebarVersion">v0.29</span>
+  </div>
+
+  <div id="videoSection">
+    <div class="video-main-row">
+      <button class="video-dl-btn" id="btnVideoDownload">
+        <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><polygon points="4,3 17,10 4,17" fill="#fafafa"/></svg>
+        Choose video quality
+      </button>
+      <select class="quality-profile" id="qualityProfile" title="Quality profile">
+        <option value="best">Best available</option>
+        <option value="1080">Up to 1080p</option>
+        <option value="720">Up to 720p</option>
+        <option value="small">Smallest file</option>
+        <option value="audio">Audio first</option>
+      </select>
+      <button class="video-help-btn" title="Help">?</button>
+      <button class="video-close-btn" id="btnVideoClose" title="Close">✕</button>
+    </div>
+    <div class="video-dl-all" id="btnDlAll">
+      <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
+        <polyline points="3,5 17,5"  stroke="#a1a1aa" stroke-width="1.8" stroke-linecap="round"/>
+        <polyline points="3,10 17,10" stroke="#a1a1aa" stroke-width="1.8" stroke-linecap="round"/>
+        <polyline points="3,15 17,15" stroke="#a1a1aa" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      Available qualities
+      <svg class="chevron" width="12" height="12" viewBox="0 0 20 20" fill="none">
+        <polyline points="4,7 10,13 16,7" stroke="#a1a1aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="video-quality-list" id="qualityList"></div>
+  </div>
+
+  <div class="content">
+    <div class="form-area">
+      <div class="field">
+        <label>URL</label>
+        <input type="text" id="urlField" readonly/>
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <div class="select-row">
+          <select id="categoryField">
+            <option>General</option>
+            <option>Compressed</option>
+            <option>Documents</option>
+            <option>Music</option>
+            <option>Programs</option>
+            <option>Video</option>
+          </select>
+          <button class="btn-add-cat" id="btnAddCat" title="Add category">+</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Save As</label>
+        <div class="field-inline">
+          <input type="text" id="filenameField" placeholder="filename…"/>
+          <button class="btn-browse" id="btnBrowse">…</button>
+        </div>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="rememberPath" checked/>
+        <label for="rememberPath">Remember this path for "<span id="catLabel">General</span>" category</label>
+      </div>
+      <div class="remember-box" id="rememberBox">
+        <input type="text" id="saveDirField" placeholder="Downloads\"/>
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <input type="text" id="descField" placeholder="Optional note…"/>
+      </div>
+      <div class="notice yt"  id="ytNotice"  style="display:none;">This is a YouTube URL. Speusis will attempt to extract and download the video stream via yt-dlp (must be installed).</div>
+      <div class="notice tor" id="torNotice" style="display:none;">🧲 Magnet / torrent link — Speusis will connect to peers and download via BitTorrent.</div>
+    </div>
+
+    <div class="file-preview">
+      <svg id="fileIconSvg" width="52" height="60" viewBox="0 0 52 60" fill="none">
+        <rect x="1" y="1" width="50" height="58" rx="5" fill="#27272a" stroke="#3f3f46" stroke-width="1.5"/>
+        <path d="M26 18v16M19.5 28l6.5 8 6.5-8" stroke="#fafafa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="16" y1="45" x2="36" y2="45" stroke="#fafafa" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <div class="file-size" id="fileSize">—</div>
+    </div>
+  </div>
+
+  <div class="btn-bar">
+    <span id="statusLine"><span id="spinner"></span><span id="statusText"></span></span>
+    <button class="btn btn-secondary" id="btnLater">Download Later</button>
+    <button class="btn btn-primary"   id="btnStart">Start Download</button>
+    <button class="btn btn-cancel"    id="btnCancel">Cancel</button>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <h3>New Category</h3>
+      <input type="text" id="newCatInput" placeholder="e.g. Books" maxlength="40"/>
+      <div class="modal-btns">
+        <button class="btn btn-cancel"  id="modalCancel">Cancel</button>
+        <button class="btn btn-primary" id="modalOk">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="download-dialog.js"></script>
+</body>
+</html>

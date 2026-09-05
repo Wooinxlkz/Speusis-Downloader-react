@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Speusis</title>
+  <style>
+    :root{
+      --bg:       #09090b;
+      --surface:  #18181b;
+      --surface2: #27272a;
+      --border:   #3f3f46;
+      --text:     #fafafa;
+      --muted:    #a1a1aa;
+      --green:    #4ade80;
+      --red:      #f87171;
+      --radius:   6px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{width:340px;font-family:"Segoe UI",system-ui,sans-serif;font-size:13px;background:var(--bg);color:var(--text);}
+    .header{
+      background:var(--surface);border-bottom:1px solid var(--border);
+      padding:11px 14px;display:flex;align-items:center;gap:10px;
+    }
+    .logo{
+      width:28px;height:28px;border-radius:6px;overflow:hidden;flex-shrink:0;
+      background:var(--surface2);border:1px solid var(--border);
+      display:flex;align-items:center;justify-content:center;
+    }
+    .logo img{width:100%;height:100%;object-fit:cover;}
+    .header-text strong{display:block;font-size:13px;color:var(--text);}
+    .header-text span{font-size:11px;color:var(--muted);}
+    .section{padding:11px 14px;border-bottom:1px solid var(--border);}
+    .section-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px;}
+    .url-form{display:flex;flex-direction:column;gap:6px;}
+    .url-form input{
+      background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+      color:var(--text);padding:6px 10px;font:inherit;font-size:12px;outline:none;width:100%;
+      transition:border-color .12s;
+    }
+    .url-form input:focus{border-color:#71717a;box-shadow:0 0 0 2px rgba(113,113,122,.2);}
+    .url-form input::placeholder{color:var(--muted);}
+    .btn-row{display:flex;gap:6px;}
+    .btn{
+      flex:1;padding:6px 10px;border-radius:var(--radius);border:1px solid var(--border);
+      cursor:pointer;font:inherit;font-size:12px;font-weight:500;
+      transition:background .12s,border-color .12s;
+    }
+    .btn-primary{background:#fafafa;color:#09090b;border-color:#fafafa;}
+    .btn-primary:hover{background:#e4e4e7;border-color:#e4e4e7;}
+    .btn-secondary{background:var(--surface2);color:var(--text);border-color:var(--border);}
+    .btn-secondary:hover{background:var(--border);}
+    .info-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);padding:3px 0;}
+    .info-val{color:var(--text);}
+    .status-row{
+      display:flex;align-items:center;gap:7px;
+      padding:9px 14px;font-size:11px;color:var(--muted);
+      border-top:1px solid var(--border);
+    }
+    .status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0;}
+    .status-dot.offline{background:var(--red);}
+    #feedbackMsg{font-size:11px;padding:0 14px 8px;color:var(--green);min-height:20px;}
+    #feedbackMsg.error{color:var(--red);}
+    .tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:7px 10px;background:#111113;border-bottom:1px solid var(--border);}
+    .tab{border:0;border-radius:5px;padding:7px 4px;background:transparent;color:var(--muted);cursor:pointer;font:inherit;font-size:11px;font-weight:600;}
+    .tab:hover{background:var(--surface2);color:var(--text);}
+    .tab.active{background:#3f3f46;color:var(--text);box-shadow:inset 0 -2px #fafafa;}
+    .tab-panel{display:none;}
+    .tab-panel.active{display:block;}
+    .section.compact{padding-top:9px;padding-bottom:9px;}
+    .tool-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+    .tool-btn{padding:7px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);cursor:pointer;font:inherit;font-size:11px;text-align:left;}
+    .tool-btn:hover{background:var(--border);}
+    .settings-row{display:flex;align-items:center;gap:7px;margin-top:7px;font-size:11px;color:var(--muted);}
+    .settings-row select,.settings-row input{flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:5px 7px;font:inherit;font-size:11px;}
+    .mini{padding:5px 8px;flex:0 0 auto;}
+    .saved-list{display:flex;flex-direction:column;gap:5px;margin-top:10px;}
+    .saved-list:empty{display:none;}
+    .saved-item{display:flex;align-items:center;gap:7px;padding:6px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);font-size:11px;min-width:0;}
+    .saved-item .saved-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--text);}
+    .saved-item .saved-kind{color:var(--muted);font-size:10px;flex:0 0 auto;}
+    .remove-btn{border:0;background:transparent;color:var(--muted);cursor:pointer;font:inherit;font-size:15px;line-height:1;padding:0 2px;}
+    .remove-btn:hover{color:var(--red);}
+    .saved-heading{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-top:11px;}
+    #linkResults{display:none;max-height:180px;overflow:auto;margin-top:8px;border-top:1px solid var(--border);}
+    .link-item{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(63,63,70,.5);font-size:11px;}
+    .link-item input{accent-color:var(--text);}
+    .link-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--muted);}
+    .hint{font-size:10px;color:var(--muted);line-height:1.45;margin-top:6px;}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo"><img src="icon128.png" alt="Speusis"/></div>
+    <div class="header-text">
+      <strong>Speusis</strong>
+      <span id="popupVersion">v0.29 · Download Manager</span>
+    </div>
+  </div>
+
+  <nav class="tabs" aria-label="Speusis sections">
+    <button class="tab active" data-tab="download">Download</button>
+    <button class="tab" data-tab="page">Page tools</button>
+    <button class="tab" data-tab="settings">Settings</button>
+  </nav>
+
+  <div class="tab-panel active" data-panel="download">
+  <div class="section">
+    <div class="section-title">Add Download</div>
+    <form class="url-form" id="urlForm">
+      <input type="text" id="urlInput" placeholder="Paste URL or magnet link…" required autocomplete="off"/>
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary">Download Now</button>
+        <button type="button" class="btn btn-secondary" id="btnLater">Queue</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="feedbackMsg" aria-live="polite"></div>
+
+  <div class="section compact">
+    <div class="section-title">Status</div>
+    <div class="info-row"><span>Speusis desktop</span><span class="info-val" id="desktopStatus">Checking…</span></div>
+    <div class="info-row"><span>Listener</span><span class="info-val">127.0.0.1:9999</span></div>
+  </div>
+  </div>
+
+  <div class="tab-panel" data-panel="page">
+  <div class="section">
+    <div class="section-title">Page tools</div>
+    <div class="tool-grid">
+      <button class="tool-btn" id="btnScan">⌕ Collect page links</button>
+      <button class="tool-btn" id="btnQueuePage">↓ Queue page media</button>
+      <button class="tool-btn" id="btnCopyPageUrl">⧉ Copy page URL</button>
+      <button class="tool-btn" id="btnOpenTools">▣ Desktop media tools</button>
+    </div>
+    <div id="linkResults"></div>
+    <div class="btn-row" id="linkActions" style="display:none;margin-top:7px;">
+      <button class="btn btn-primary" id="btnQueueSelected">Queue selected</button>
+      <button class="btn btn-secondary" id="btnSelectAll">Select all</button>
+    </div>
+    <div class="hint">Links are collected locally from the active page. Protected or browser-hidden media may not be visible.</div>
+  </div>
+  </div>
+
+  <div class="tab-panel" data-panel="settings">
+  <div class="section">
+    <div class="section-title">Preferences</div>
+    <div class="settings-row"><span>Quality</span><select id="qualityProfile">
+      <option value="best">Best available</option><option value="1080">Up to 1080p</option>
+      <option value="720">Up to 720p</option><option value="small">Smallest file</option><option value="audio">Audio first</option>
+    </select></div>
+    <div class="settings-row"><span>Block site</span><input id="blockedDomain" placeholder="example.com"/><button class="btn btn-secondary mini" id="btnBlock">Add</button></div>
+    <div class="settings-row"><span>Rule</span><input id="ruleDomain" placeholder="site.com"/><select id="ruleCategory"><option>Video</option><option>Music</option><option>Documents</option><option>General</option></select><button class="btn btn-secondary mini" id="btnRule">Add</button></div>
+    <div class="hint">Rules route future batch items. Blocked domains are excluded from collection and batch queueing.</div>
+    <div class="saved-heading" id="blockedHeading">Blocked sites</div>
+    <div class="saved-list" id="blockedList" aria-live="polite"></div>
+    <div class="saved-heading" id="rulesHeading">Saved rules</div>
+    <div class="saved-list" id="rulesList" aria-live="polite"></div>
+  </div>
+  </div>
+
+  <div class="status-row">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Connecting to Speusis…</span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

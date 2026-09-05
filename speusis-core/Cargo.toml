@@ -1,0 +1,44 @@
+[package]
+name = "speusis-core"
+version = "0.4.6"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "sync", "time", "process", "io-util", "net"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+thiserror = "1"
+anyhow = "1"
+dirs = "5"
+reqwest = { version = "0.11", features = ["stream", "json"] }
+regex = "1"
+sha1 = "0.10"
+sha2 = "0.10"
+hex = "0.4"
+base64 = "0.21"
+url = "2"
+percent-encoding = "2"
+async-trait = "0.1"
+async-recursion = "1"
+tiny_http = "0.12"
+futures = "0.3"
+tokio-util = "0.7"
+bytes = "1"
+
+# BitTorrent engine (ported from torrent-stream JS dependency in the original).
+# librqbit provides DHT, tracker, peer-wire protocol, piece verification and
+# seeding in a single crate – the "Recommended" note in the previous Cargo.toml
+# comment identified it as the right choice.
+librqbit = { version = "8", features = ["storage_middleware"] }
+
+# .torrent file parser + writer (for torrent_get_files and torrent_create).
+lava_torrent = "0.10"
+
+# Archive Manager (v0.5.50): ZIP read/write, TAR/TAR.GZ read. Pure-Rust
+# deflate backend (flate2's default "rust_backend"/miniz_oxide) so this
+# doesn't add a C-toolchain requirement to the Windows CI build.
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
+tar = "0.4"
+flate2 = "1"
