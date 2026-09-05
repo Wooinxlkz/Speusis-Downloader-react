@@ -153,6 +153,49 @@
   background: transparent;
 }
 
+/* Row progress bar shimmer sweep — the accent-colored fill itself is a
+   plain width transition; this overlay adds the motion the user asked for
+   without re-rendering the fill every tick. */
+.progress-shimmer {
+  background: linear-gradient(
+    100deg,
+    transparent 35%,
+    color-mix(in oklab, var(--accent-ink) 45%, transparent) 50%,
+    transparent 65%
+  );
+  background-size: 200% 100%;
+  animation: progress-shimmer-sweep 2.2s linear infinite;
+  border-radius: inherit;
+}
+@keyframes progress-shimmer-sweep {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Sidebar's middle (Downloads/Status/Drives) zone - scrollbar only
+   appears on hover, invisible otherwise. Firefox + WebKit both covered. */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sidebar-scroll:hover {
+  scrollbar-color: var(--line) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--line);
+}
+
 /* Press feedback shared by every button in the app (mirrors Xuro's
    whileTap scale used across its buttons/Modal.tsx triggers). */
 button:not(:disabled):active {

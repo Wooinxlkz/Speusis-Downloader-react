@@ -112,14 +112,14 @@ export function ThroughputGraph({ onSpeedLabel }: { onSpeedLabel?: (s: string) =
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block h-full w-full">
         <defs>
           <linearGradient id="speusisAreaFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--info)" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="var(--info)" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--accent-ink)" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="var(--accent-ink)" stopOpacity="0" />
           </linearGradient>
         </defs>
         <g ref={gRef}>
           <path ref={areaRef} fill="url(#speusisAreaFill)" />
-          <path ref={lineRef} fill="none" stroke="var(--info)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          <circle ref={dotRef} r="2.6" fill="var(--info)" style={{ filter: "drop-shadow(0 0 4px var(--info))" }} />
+          <path ref={lineRef} fill="none" stroke="var(--accent-ink)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          <circle ref={dotRef} r="2.6" fill="var(--accent-ink)" style={{ filter: "drop-shadow(0 0 4px var(--accent-ink))" }} />
         </g>
       </svg>
     </div>

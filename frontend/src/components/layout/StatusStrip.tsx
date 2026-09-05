@@ -31,7 +31,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[10px] uppercase tracking-wide text-faint">{label}</span>
-      <span className={`font-mono text-[13px] font-semibold ${accent ? "text-info" : ""}`}>{value}</span>
+      <span className={`font-mono text-[13px] font-semibold ${accent ? "text-accent-ink" : ""}`}>{value}</span>
     </div>
   );
 }

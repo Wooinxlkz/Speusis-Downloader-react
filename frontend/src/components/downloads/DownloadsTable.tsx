@@ -1,5 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  MoreHorizontal,
+  FileText,
+  ExternalLink,
+  FolderOpen,
+  Play,
+  Pause as PauseIcon,
+  Square,
+  FileArchive,
+  FolderOutput,
+  FileArchiveIcon,
+  PenLine,
+  RotateCw,
+  RefreshCw,
+  Link2,
+  Info,
+  Grid3x3,
+  Radar,
+  Layers,
+  Trash2,
+} from "lucide-react";
 import { useDownloadsStore } from "@/stores/downloads";
 import { useCategoryStore } from "@/stores/category";
 import { useUIStore } from "@/stores/ui";
@@ -15,6 +36,14 @@ const EXT_GROUPS: Record<string, string[]> = {
   programs: ["exe", "msi", "dmg", "apk"],
   video: ["mp4", "mkv", "avi", "mov", "webm"],
 };
+
+function extOf(task: DownloadTask): string {
+  const name = task.filename || task.outputPath || task.url;
+  const i = name.lastIndexOf(".");
+  return i === -1 ? "" : name.slice(i + 1).toLowerCase().split(/[?#]/)[0];
+}
+const isArchive = (t: DownloadTask) => EXT_GROUPS.compressed.includes(extOf(t));
+const isMedia = (t: DownloadTask) => EXT_GROUPS.music.includes(extOf(t)) || EXT_GROUPS.video.includes(extOf(t));
 
 export function DownloadsTable() {
   const tasks = useDownloadsStore((s) => s.tasks);
@@ -61,7 +90,7 @@ export function DownloadsTable() {
 
   return (
     <div className="flex-1 overflow-y-auto px-2 py-1">
-      <div className="grid grid-cols-[1fr_90px_120px_110px_100px_60px] px-3 py-2 text-[10.5px] font-semibold uppercase tracking-wide text-faint">
+      <div className="grid grid-cols-[1fr_90px_150px_110px_100px_60px] px-3 py-2 text-[10.5px] font-semibold uppercase tracking-wide text-faint">
         <span>File name</span>
         <span>Size</span>
         <span>Status</span>
@@ -105,10 +134,76 @@ function Row({
   const open = useUIStore((s) => s.open);
   const pct = task.size ? Math.min(100, (task.receivedBytes / task.size) * 100) : 0;
 
+  async function runAction(action: string) {
+    onCloseMenu();
+    switch (action) {
+      case "pause":
+        await ipc.downloadPause(task.id);
+        break;
+      case "resume":
+        await ipc.downloadResume(task.id);
+        break;
+      case "cancel":
+        await ipc.downloadCancel(task.id);
+        break;
+      case "openFile":
+        await ipc.downloadOpenFile(task.id);
+        break;
+      case "openFolder":
+        await ipc.downloadOpenFolder(task.id);
+        break;
+      case "openWith":
+        await ipc.downloadOpenWith(task.id);
+        break;
+      case "play": {
+        const url = await ipc.downloadStreamingUrl(task.id);
+        const { open: openUrl } = await import("@tauri-apps/plugin-shell");
+        await openUrl(url);
+        break;
+      }
+      case "extractHere":
+        await ipc.archiveExtractHere(task.id);
+        break;
+      case "extractTo":
+        await ipc.archiveExtractTo(task.id);
+        break;
+      case "createZip":
+        await ipc.archiveCreateZip(task.id);
+        break;
+      case "copyUrl": {
+        const { writeText } = await import("@tauri-apps/plugin-clipboard-manager");
+        await writeText(task.url);
+        break;
+      }
+      case "redownload":
+      case "refreshUrl": {
+        const fresh = await ipc.downloadAdd({ url: task.url, filename: task.filename ?? undefined, label: task.label ?? undefined, start: true });
+        if (fresh?.id) await ipc.downloadRemove(task.id, false);
+        break;
+      }
+      case "properties":
+        open("properties", task.id);
+        return;
+      case "rename":
+        open("rename", task.id);
+        return;
+      case "delete":
+        open("deleteConfirm", task.id);
+        return;
+      case "segmentMap":
+        open("segmentMap", task.id);
+        return;
+      case "torrentFiles":
+        open("torrentFiles", task.id);
+        return;
+    }
+    refresh();
+  }
+
   return (
     <div
       onClick={onSelect}
-      className={`group relative grid grid-cols-[1fr_90px_120px_110px_100px_60px] items-center rounded-lg px-3 py-2 transition-colors ${
+      className={`group relative grid grid-cols-[1fr_90px_150px_110px_100px_60px] items-center rounded-lg px-3 py-2 transition-colors ${
         selected ? "bg-active" : "hover:bg-hover"
       }`}
     >
@@ -124,11 +219,18 @@ function Row({
 
       <span className="font-mono text-[12px] text-muted">{fmtBytes(task.size)}</span>
 
-      <div>
-        <Badge status={task.status} />
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-1">
+          <Badge status={task.status} />
+          {task.securityScan && <ScanBadge status={task.securityScan.status} />}
+        </div>
         {task.status === "running" && (
-          <div className="mt-1 h-1 overflow-hidden rounded-full bg-sunken">
-            <div className="h-full bg-info opacity-60 transition-all duration-500" style={{ width: `${pct}%` }} />
+          <div className="relative h-1 w-full max-w-[120px] overflow-hidden rounded-full bg-sunken">
+            <div
+              className="h-full rounded-full bg-accent-ink opacity-60 transition-all duration-500"
+              style={{ width: `${pct}%` }}
+            />
+            <div className="progress-shimmer absolute inset-0" style={{ width: `${pct}%` }} />
           </div>
         )}
       </div>
@@ -150,27 +252,7 @@ function Row({
         >
           <MoreHorizontal size={16} />
         </button>
-        {menuOpen && (
-          <RowMenu
-            task={task}
-            onClose={onCloseMenu}
-            onAction={async (action) => {
-              onCloseMenu();
-              if (action === "pause") await ipc.downloadPause(task.id);
-              if (action === "resume") await ipc.downloadResume(task.id);
-              if (action === "cancel") await ipc.downloadCancel(task.id);
-              if (action === "openFile") await ipc.downloadOpenFile(task.id);
-              if (action === "openFolder") await ipc.downloadOpenFolder(task.id);
-              if (action === "openWith") await ipc.downloadOpenWith(task.id);
-              if (action === "properties") open("properties", task.id);
-              if (action === "rename") open("rename", task.id);
-              if (action === "delete") open("deleteConfirm", task.id);
-              if (action === "segmentMap") open("segmentMap", task.id);
-              if (action === "torrentFiles") open("torrentFiles", task.id);
-              refresh();
-            }}
-          />
-        )}
+        <RowMenu open={menuOpen} task={task} onClose={onCloseMenu} onAction={runAction} />
       </div>
     </div>
   );
@@ -193,74 +275,175 @@ function Badge({ status }: { status: DownloadTask["status"] }) {
   );
 }
 
+function ScanBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    pending: { label: "Scanning", cls: "text-muted bg-sunken border-line" },
+    clean: { label: "Clean", cls: "text-success bg-success-bg border-success-line" },
+    "threats-found": { label: "Threat found", cls: "text-danger bg-warning-bg border-warning-line" },
+    failed: { label: "Scan failed", cls: "text-faint bg-panel border-line" },
+  };
+  const m = map[status] ?? map.pending;
+  return (
+    <span className={`inline-flex w-fit items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${m.cls}`}>
+      {m.label}
+    </span>
+  );
+}
+
 function RowMenu({
+  open,
   task,
   onAction,
   onClose,
 }: {
+  open: boolean;
   task: DownloadTask;
   onAction: (action: string) => void;
   onClose: () => void;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    const onDoc = () => onClose();
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) onClose();
+    };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [onClose]);
+  }, [open, onClose]);
 
-  const items: [string, string][] =
-    task.status === "running"
-      ? [["pause", "Pause"], ["cancel", "Stop"]]
-      : task.status === "paused"
-        ? [["resume", "Resume"], ["cancel", "Stop"]]
-        : [];
+  const isRunning = task.status === "running";
+  const isPaused = task.status === "paused";
+  const isDone = task.status === "completed";
+  const canStop = isRunning || isPaused || task.status === "queued";
 
   return (
-    <div
-      onClick={(e) => e.stopPropagation()}
-      className="absolute right-0 top-8 z-20 w-44 rounded-lg border border-line bg-bg py-1 shadow-2xl"
-    >
-      {items.map(([action, label]) => (
-        <MenuItem key={action} onClick={() => onAction(action)}>
-          {label}
-        </MenuItem>
-      ))}
-      {task.status === "completed" && (
-        <>
-          <MenuItem onClick={() => onAction("openFile")}>Open file</MenuItem>
-          <MenuItem onClick={() => onAction("openFolder")}>Open folder</MenuItem>
-          <MenuItem onClick={() => onAction("openWith")}>Open with…</MenuItem>
-        </>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          ref={ref}
+          onClick={(e) => e.stopPropagation()}
+          initial={{ opacity: 0, scale: 0.96, y: -4 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: -4 }}
+          transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
+          style={{ transformOrigin: "top right" }}
+          className="absolute right-0 top-8 z-20 w-56 rounded-xl border border-line bg-bg p-1 shadow-2xl"
+        >
+          <MenuItem icon={<FileText size={13} />} disabled={!isDone} onClick={() => onAction("openFile")}>
+            Open
+          </MenuItem>
+          <MenuItem icon={<ExternalLink size={13} />} disabled={!isDone} onClick={() => onAction("openWith")}>
+            Open with…
+          </MenuItem>
+          <MenuItem icon={<FolderOpen size={13} />} disabled={!task.outputPath} onClick={() => onAction("openFolder")}>
+            Open folder
+          </MenuItem>
+          {isMedia(task) && (
+            <MenuItem icon={<Play size={13} />} disabled={!isDone} onClick={() => onAction("play")}>
+              Play
+            </MenuItem>
+          )}
+
+          <Sep />
+          <MenuItem icon={<Play size={13} />} disabled={!isPaused} onClick={() => onAction("resume")}>
+            Resume download
+          </MenuItem>
+          <MenuItem icon={<PauseIcon size={13} />} disabled={!isRunning} onClick={() => onAction("pause")}>
+            Pause download
+          </MenuItem>
+          <MenuItem icon={<Square size={13} />} disabled={!canStop} onClick={() => onAction("cancel")}>
+            Stop download
+          </MenuItem>
+
+          {isArchive(task) && isDone && (
+            <>
+              <Sep />
+              <MenuItem icon={<FileArchive size={13} />} onClick={() => onAction("extractHere")}>
+                Extract here
+              </MenuItem>
+              <MenuItem icon={<FolderOutput size={13} />} onClick={() => onAction("extractTo")}>
+                Extract to…
+              </MenuItem>
+              <MenuItem icon={<FileArchiveIcon size={13} />} onClick={() => onAction("createZip")}>
+                Add to zip archive…
+              </MenuItem>
+            </>
+          )}
+
+          <Sep />
+          <MenuItem icon={<PenLine size={13} />} shortcut="Ctrl+M" onClick={() => onAction("rename")}>
+            Move / rename
+          </MenuItem>
+          <MenuItem icon={<RotateCw size={13} />} onClick={() => onAction("redownload")}>
+            Redownload
+          </MenuItem>
+          <MenuItem icon={<RefreshCw size={13} />} onClick={() => onAction("refreshUrl")}>
+            Refresh download address
+          </MenuItem>
+          <MenuItem icon={<Link2 size={13} />} onClick={() => onAction("copyUrl")}>
+            Copy URL
+          </MenuItem>
+
+          <Sep />
+          <MenuItem icon={<Info size={13} />} onClick={() => onAction("properties")}>
+            Properties
+          </MenuItem>
+          <MenuItem icon={<Grid3x3 size={13} />} onClick={() => onAction("segmentMap")}>
+            Segment map
+          </MenuItem>
+          <MenuItem icon={<Radar size={13} />} disabled title="Not available in this engine build">
+            Tracer
+          </MenuItem>
+          {task.kind === "torrent" && (
+            <MenuItem icon={<Layers size={13} />} onClick={() => onAction("torrentFiles")}>
+              Torrent files…
+            </MenuItem>
+          )}
+
+          <Sep />
+          <MenuItem icon={<Trash2 size={13} />} danger onClick={() => onAction("delete")}>
+            Delete
+          </MenuItem>
+        </motion.div>
       )}
-      {task.kind === "torrent" && <MenuItem onClick={() => onAction("torrentFiles")}>File selection…</MenuItem>}
-      <MenuItem onClick={() => onAction("segmentMap")}>Segment map…</MenuItem>
-      <MenuItem onClick={() => onAction("rename")}>Move / rename…</MenuItem>
-      <MenuItem onClick={() => onAction("properties")}>Properties…</MenuItem>
-      <div className="my-1 h-px bg-line-soft" />
-      <MenuItem danger onClick={() => onAction("delete")}>
-        Delete…
-      </MenuItem>
-    </div>
+    </AnimatePresence>
   );
+}
+
+function Sep() {
+  return <div className="my-1 h-px bg-line-soft" />;
 }
 
 function MenuItem({
   children,
+  icon,
   onClick,
   danger,
+  disabled,
+  shortcut,
+  title,
 }: {
   children: React.ReactNode;
-  onClick: () => void;
+  icon?: React.ReactNode;
+  onClick?: () => void;
   danger?: boolean;
+  disabled?: boolean;
+  shortcut?: string;
+  title?: string;
 }) {
   return (
     <button
-      onClick={onClick}
-      className={`flex w-full items-center px-3 py-1.5 text-left text-[12.5px] transition-colors hover:bg-hover ${
-        danger ? "text-danger" : "text-ink"
+      onClick={disabled ? undefined : onClick}
+      title={title}
+      disabled={disabled}
+      className={`flex h-[30px] w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[12.5px] transition-colors ${
+        disabled ? "cursor-default text-faint" : danger ? "text-danger hover:bg-danger/10" : "text-ink hover:bg-hover"
       }`}
     >
-      {children}
+      {icon && <span className="opacity-80">{icon}</span>}
+      <span>{children}</span>
+      {shortcut && <span className="ml-auto text-[10px] text-faint">{shortcut}</span>}
     </button>
   );
 }

@@ -1,4 +1,4 @@
-# Speusis Downloader v0.1.0 — Xuro-shell rebuild
+# Speusis Downloader React v0.1.1 — Xuro-shell rebuild
 
 ## What this is
 
@@ -69,7 +69,20 @@ the original's panel list) but has no backend command to call — the
 current engine doesn't expose one. Rather than invent one and risk
 silently changing engine behavior, the dialog says so and disables Save.
 Search `commands.rs` for a rename/move command if you want to wire this
-up for real — the UI is ready for it.
+up for real — the UI is ready for it. The row menu's "Tracer" entry has
+the same situation — shown, grayed out, no backend command exists for it.
+
+**Small deliberate improvement over 1:1 parity:** the original's
+"Redownload"/"Refresh address" actions only removed the old row from the
+renderer's local state, leaving the stale task sitting in the backend
+forever. This version also calls `download_remove` on the old task so the
+backend's list doesn't accumulate orphaned entries — same visible
+behavior, cleaner state underneath.
+
+**Not carried over (out of scope for this pass):** the old Web Grabber
+had a filter-by-extension input and Select All/None buttons alongside the
+scanned link list. Noting it here in case you want it in a future pass —
+straightforward to add, just wasn't part of this round's fix list.
 
 **Native panel windows:** the original app mostly shows its dialogs as
 in-page overlays (see the old `app.js`'s `isNativePanelWindow` flag,
@@ -101,8 +114,12 @@ for you if you use `cargo tauri build` from `src-tauri/`.)
 
 ## Version
 
-Bumped to **0.1.0** across `frontend/package.json`, `src-tauri/Cargo.toml`,
-and `tauri.conf.json` — this is being treated as a first release of the
-redesigned app, distinct from vanilla Speusis's 0.5.64 line.
+**0.1.1** — a UI/polish pass on top of 0.1.0: accent-aware graph and progress
+bar colors (no more hardcoded blue/green), collapsible + hover-scrollbar
+sidebar sections, richer About/Help/Registration content pulled from the
+original app's real strings, a redesigned Basket with real HTML5 drag-drop,
+and a fuller row-action menu (Extract/Zip, Redownload, Refresh address, Copy
+URL, etc.) with Xuro's exact dropdown motion. Bumped across
+`frontend/package.json`, `src-tauri/Cargo.toml`, and `tauri.conf.json`.
 `speusis-core`'s own crate version (0.4.6) was left alone since it's
 unmodified library code.
