@@ -88,7 +88,7 @@ function BasketApp() {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-bg text-ink">
+    <div className="flex h-screen w-screen flex-col bg-bg text-ink motion-modal-in">
       <div data-tauri-drag-region className="flex h-9 flex-shrink-0 items-center gap-2 border-b border-line-soft bg-panel px-3">
         <ShoppingBasket size={14} className="text-accent-ink" />
         <span className="text-[11.5px] font-semibold uppercase tracking-wide text-muted">Basket</span>

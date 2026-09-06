@@ -153,6 +153,23 @@
   background: transparent;
 }
 
+/* Basket runs in its own native window, so it can't sit inside our
+   Modal component - this gives it the same fade+scale entrance as every
+   other dialog for visual consistency when the window first shows. */
+@keyframes modal-in-keyframes {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.motion-modal-in {
+  animation: modal-in-keyframes 0.3s var(--ease-out) both;
+}
+
 /* Row progress bar shimmer sweep — the accent-colored fill itself is a
    plain width transition; this overlay adds the motion the user asked for
    without re-rendering the fill every tick. */

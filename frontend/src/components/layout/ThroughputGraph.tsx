@@ -108,7 +108,7 @@ export function ThroughputGraph({ onSpeedLabel }: { onSpeedLabel?: (s: string) =
   }, []);
 
   return (
-    <div className="relative h-11 w-full max-w-[340px] overflow-hidden rounded-lg">
+    <div className="relative h-11 w-full flex-1 overflow-hidden rounded-lg">
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block h-full w-full">
         <defs>
           <linearGradient id="speusisAreaFill" x1="0" y1="0" x2="0" y2="1">

@@ -9,19 +9,27 @@ import {
   Info,
   X,
   FolderOpen,
+  ShieldCheck,
+  SlidersHorizontal,
+  Keyboard,
+  Globe,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui";
 import { useSettingsStore } from "@/stores/settings";
 import { FieldRow, Switch, TextInput, Button } from "./Modal";
 import { ipc } from "@/lib/ipc";
+import { LANGUAGES, useI18nStore } from "@/lib/i18n";
 import type { AccentColor, ThemeMode } from "@/lib/types";
 
 const TABS: { id: string; label: string; icon: React.ReactNode; desc: string }[] = [
   { id: "general", label: "General", icon: <SettingsIcon size={14} />, desc: "Folders and default behavior" },
-  { id: "downloads", label: "Downloads", icon: <Download size={14} />, desc: "Concurrency, retries, scanning" },
-  { id: "connections", label: "Connections", icon: <Share2 size={14} />, desc: "Bandwidth and network limits" },
+  { id: "downloads", label: "Downloads", icon: <Download size={14} />, desc: "Concurrency, retries, file handling" },
+  { id: "connections", label: "Connections", icon: <Share2 size={14} />, desc: "Bandwidth, network, browser extension" },
+  { id: "security", label: "Security", icon: <ShieldCheck size={14} />, desc: "File scanning and IP protection" },
   { id: "schedule", label: "Schedule", icon: <Clock size={14} />, desc: "Auto start/stop and peak hours" },
-  { id: "appearance", label: "Appearance", icon: <Palette size={14} />, desc: "Theme and accent color" },
+  { id: "advanced", label: "Advanced", icon: <SlidersHorizontal size={14} />, desc: "Torrent seeding and engine internals" },
+  { id: "appearance", label: "Appearance", icon: <Palette size={14} />, desc: "Theme, accent color, and language" },
+  { id: "shortcuts", label: "Shortcuts", icon: <Keyboard size={14} />, desc: "Keyboard shortcuts reference" },
   { id: "about", label: "About", icon: <Info size={14} />, desc: "Version and app info" },
 ];
 
@@ -32,9 +40,11 @@ export function SettingsDialog() {
   const setSettingsTab = useUIStore((s) => s.setSettingsTab);
   const { settings, load, update } = useSettingsStore();
   const open = dialog === "settings";
+  const [version, setVersion] = useState("…");
 
   useEffect(() => {
     if (open && !settings) load();
+    if (open) ipc.appGetVersion().then(setVersion).catch(() => setVersion("unknown"));
   }, [open, settings, load]);
 
   const tab = TABS.find((t) => t.id === settingsTab) ?? TABS[0];
@@ -79,7 +89,7 @@ export function SettingsDialog() {
           </nav>
           <div className="mt-auto p-4 text-[10.5px] leading-4 text-faint">
             <p>Downloads, torrents, and FTP, one native app.</p>
-            <p className="mt-2 font-mono">Version 0.1.0</p>
+            <p className="mt-2 font-mono">Version {version}</p>
           </div>
         </aside>
 
@@ -118,10 +128,16 @@ export function SettingsDialog() {
                   <DownloadsTab settings={settings} update={update} />
                 ) : tab.id === "connections" ? (
                   <ConnectionsTab settings={settings} update={update} />
+                ) : tab.id === "security" ? (
+                  <SecurityTab settings={settings} update={update} />
                 ) : tab.id === "schedule" ? (
                   <ScheduleTab settings={settings} update={update} />
+                ) : tab.id === "advanced" ? (
+                  <AdvancedTab settings={settings} update={update} />
                 ) : tab.id === "appearance" ? (
                   <AppearanceTab settings={settings} update={update} />
+                ) : tab.id === "shortcuts" ? (
+                  <ShortcutsTab />
                 ) : (
                   <AboutTab />
                 )}
@@ -162,18 +178,12 @@ function GeneralTab({ settings, update }: { settings: Settings; update: Update }
           </Button>
         </div>
       </Group>
-      <Group title="Behavior">
+      <Group title="Startup & window">
         <FieldRow label="Start with system" desc="Launch Speusis when you log in">
           <Switch on={settings.autoStartWithSystem} onToggle={() => update({ autoStartWithSystem: !settings.autoStartWithSystem })} />
         </FieldRow>
         <FieldRow label="Minimize to tray" desc="Keep running in the background when closed">
           <Switch on={settings.minimizeToTray} onToggle={() => update({ minimizeToTray: !settings.minimizeToTray })} />
-        </FieldRow>
-        <FieldRow label="Scan completed files" desc="Run a security scan after each download finishes">
-          <Switch on={settings.scanCompletedFiles} onToggle={() => update({ scanCompletedFiles: !settings.scanCompletedFiles })} />
-        </FieldRow>
-        <FieldRow label="Route by file type" desc="Sort into Documents/Music/Video subfolders automatically">
-          <Switch on={settings.fileTypeRouting} onToggle={() => update({ fileTypeRouting: !settings.fileTypeRouting })} />
         </FieldRow>
       </Group>
     </>
@@ -181,6 +191,10 @@ function GeneralTab({ settings, update }: { settings: Settings; update: Update }
 }
 
 function DownloadsTab({ settings, update }: { settings: Settings; update: Update }) {
+  async function chooseTempDir() {
+    const dir = await ipc.settingsChooseDownloadDir();
+    if (dir) update({ tempDir: dir });
+  }
   return (
     <>
       <Group title="Queue" desc="How many transfers run at once">
@@ -194,10 +208,19 @@ function DownloadsTab({ settings, update }: { settings: Settings; update: Update
           <NumberInput value={settings.maxRetries} onChange={(v) => update({ maxRetries: v })} min={0} max={20} />
         </FieldRow>
       </Group>
-      <Group title="Seeding" desc="Torrent seed ratio target">
-        <FieldRow label="Seed ratio">
-          <NumberInput value={settings.seedRatio} onChange={(v) => update({ seedRatio: v })} min={0} max={10} step={0.1} />
+      <Group title="File handling">
+        <FieldRow label="Route by file type" desc="Sort into Documents/Music/Video subfolders automatically">
+          <Switch on={settings.fileTypeRouting} onToggle={() => update({ fileTypeRouting: !settings.fileTypeRouting })} />
         </FieldRow>
+        <div className="py-1.5">
+          <p className="mb-1.5 text-[13px] text-ink">Temporary files folder</p>
+          <div className="flex gap-1.5">
+            <TextInput readOnly value={settings.tempDir} />
+            <Button onClick={chooseTempDir}>
+              <FolderOpen size={14} />
+            </Button>
+          </div>
+        </div>
       </Group>
     </>
   );
@@ -214,7 +237,7 @@ function ConnectionsTab({ settings, update }: { settings: Settings; update: Upda
           <NumberInput value={settings.uploadLimit} onChange={(v) => update({ uploadLimit: v })} min={0} />
         </FieldRow>
       </Group>
-      <Group title="Network">
+      <Group title="Listener & access">
         <FieldRow label="Listener port">
           <NumberInput value={settings.listenerPort} onChange={(v) => update({ listenerPort: v })} min={1} max={65535} />
         </FieldRow>
@@ -225,7 +248,29 @@ function ConnectionsTab({ settings, update }: { settings: Settings; update: Upda
           <Switch on={settings.remoteAccess} onToggle={() => update({ remoteAccess: !settings.remoteAccess })} />
         </FieldRow>
       </Group>
-      <Group title="IP blocklist">
+      <Group title="Browser extension" desc="Send links straight to Speusis from your browser">
+        <div className="flex gap-2 py-1.5">
+          <Button className="flex-1 justify-center" onClick={() => ipc.extensionOpenStore("chromium")}>
+            Chromium
+          </Button>
+          <Button className="flex-1 justify-center" onClick={() => ipc.extensionOpenStore("firefox")}>
+            Firefox
+          </Button>
+        </div>
+      </Group>
+    </>
+  );
+}
+
+function SecurityTab({ settings, update }: { settings: Settings; update: Update }) {
+  return (
+    <>
+      <Group title="File scanning">
+        <FieldRow label="Scan completed files" desc="Run a security scan after each download finishes">
+          <Switch on={settings.scanCompletedFiles} onToggle={() => update({ scanCompletedFiles: !settings.scanCompletedFiles })} />
+        </FieldRow>
+      </Group>
+      <Group title="Network protection" desc="Block known-malicious IPs during torrent transfers">
         <div className="py-1.5">
           <TextInput
             placeholder="https://…/blocklist.txt"
@@ -235,6 +280,16 @@ function ConnectionsTab({ settings, update }: { settings: Settings; update: Upda
         </div>
       </Group>
     </>
+  );
+}
+
+function AdvancedTab({ settings, update }: { settings: Settings; update: Update }) {
+  return (
+    <Group title="Torrent seeding" desc="Keep seeding until this ratio is reached">
+      <FieldRow label="Seed ratio target">
+        <NumberInput value={settings.seedRatio} onChange={(v) => update({ seedRatio: v })} min={0} max={10} step={0.1} />
+      </FieldRow>
+    </Group>
   );
 }
 
@@ -333,7 +388,67 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Updat
           ))}
         </div>
       </Group>
+      <LanguageGroup />
     </>
+  );
+}
+
+function LanguageGroup() {
+  const language = useI18nStore((s) => s.language);
+  const setLanguage = useI18nStore((s) => s.setLanguage);
+  return (
+    <Group
+      title="Language"
+      desc="Translations come from the original app's language files - coverage is real but partial for this rebuild's new screens"
+    >
+      <div className="py-1.5">
+        <div className="relative">
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="w-full appearance-none rounded-lg border border-line bg-panel px-2.5 py-1.5 pr-8 text-[12.5px] text-ink focus:border-faint focus:outline-none"
+          >
+            {LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+          <Globe size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-faint" />
+        </div>
+      </div>
+    </Group>
+  );
+}
+
+const SHORTCUTS: { keys: string; label: string }[] = [
+  { keys: "⌘N", label: "Add download" },
+  { keys: "⌘T", label: "Open torrent" },
+  { keys: "⌘G", label: "Web grabber" },
+  { keys: "⌘B", label: "Batch download" },
+  { keys: "⌘E", label: "Open basket" },
+  { keys: "⌘⇧F", label: "Change download folder" },
+  { keys: "⌘K", label: "Focus search" },
+  { keys: "⌘\\", label: "Toggle sidebar" },
+  { keys: "⌘,", label: "Open settings" },
+  { keys: "Ctrl+M", label: "Move / rename (from a download's menu)" },
+  { keys: "Esc", label: "Close the open dialog" },
+];
+
+function ShortcutsTab() {
+  return (
+    <Group title="Keyboard shortcuts" desc="Reference only for now - not yet rebindable">
+      <div className="divide-y divide-line-soft">
+        {SHORTCUTS.map((s) => (
+          <div key={s.keys} className="flex items-center justify-between py-2">
+            <span className="text-[12.5px] text-ink">{s.label}</span>
+            <span className="rounded-md border border-line bg-panel px-2 py-0.5 font-mono text-[11px] text-muted">
+              {s.keys}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Group>
   );
 }
 

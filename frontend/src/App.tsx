@@ -5,6 +5,7 @@ import { DialogsRoot } from "@/components/dialogs/DialogsRoot";
 import { useUIStore, type DialogName } from "@/stores/ui";
 import { useSettingsStore } from "@/stores/settings";
 import { useDownloadsStore } from "@/stores/downloads";
+import { useI18nStore } from "@/lib/i18n";
 import { useEventBus } from "@/lib/useEventBus";
 import { ipc } from "@/lib/ipc";
 
@@ -48,7 +49,7 @@ export default function App() {
   useEventBus();
 
   useEffect(() => {
-    Promise.all([load(), refresh()]).finally(() => setReady(true));
+    Promise.all([load(), refresh(), useI18nStore.getState().init()]).finally(() => setReady(true));
 
     if (panel) {
       const dialog = PANEL_TO_DIALOG[panel];

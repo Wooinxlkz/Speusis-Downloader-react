@@ -114,12 +114,47 @@ for you if you use `cargo tauri build` from `src-tauri/`.)
 
 ## Version
 
-**0.1.1** — a UI/polish pass on top of 0.1.0: accent-aware graph and progress
-bar colors (no more hardcoded blue/green), collapsible + hover-scrollbar
-sidebar sections, richer About/Help/Registration content pulled from the
-original app's real strings, a redesigned Basket with real HTML5 drag-drop,
-and a fuller row-action menu (Extract/Zip, Redownload, Refresh address, Copy
-URL, etc.) with Xuro's exact dropdown motion. Bumped across
+**0.1.2** — real functionality pass: fixed the graph's width cap (was
+capped at 340px, now genuinely fills the status strip), fixed the Folder
+button (was calling the wrong command), added a real working search (was
+a non-functional placeholder button), a real right-click context menu
+(the old dropdown only worked via the "..." button) sharing one action
+list with it, Xuro's actual "morph" popover motion (clip-path growing
+from the trigger corner with real spring physics, not just fade+scale),
+a real collapsible sidebar (`⌘\`) matching Xuro's `SPRING_PANEL`, a real
+update-notification row wired to the backend's actual `update-available`
+event, a real (if partial-coverage) language switcher using the original
+app's translation files, and three new Settings tabs (Security, Advanced,
+Shortcuts) plus the fields that were missing from the others (`tempDir`,
+browser-extension buttons). One real backend fix too — see "Backend fix"
+below. Full details in the changelog further down. Bumped across
 `frontend/package.json`, `src-tauri/Cargo.toml`, and `tauri.conf.json`.
 `speusis-core`'s own crate version (0.4.6) was left alone since it's
-unmodified library code.
+unmodified library code, except for the one line noted below.
+
+### Backend fix (the one deliberate exception to "untouched engine")
+
+`speusis-core/src/update_checker.rs` had the update-check URL hardcoded to
+`Wooinxlkz/Speusis-Downloader` — the *original* repo, not this fork. Left
+as-is, update checks would silently check the wrong project forever.
+Repointed to `Wooinxlkz/Speusis-Downloader-react`. One string changed,
+nothing else in that file touched — see the comment left at that line.
+
+### Known gaps, stated plainly
+
+- **Language coverage is real but partial.** The switcher loads your
+  actual `languages/*.json` files and real strings do change — but those
+  files were written for the old vanilla UI's exact wording, so this
+  rebuild's new Settings tabs, dialog copy, etc. mostly don't have a
+  matching key yet and fall back to English. Infrastructure's real;
+  full coverage would mean extending 19 language files by hand.
+- **Shortcuts tab is reference-only.** It lists every real shortcut with
+  its actual key combo, but isn't rebindable yet — Xuro's version has a
+  full capture-and-conflict-detection system; matching that fully was
+  out of scope for this pass.
+- **Update download link is Windows-first.** The backend's asset-matching
+  only resolves a direct link for `.exe` releases; Linux/macOS still get
+  a real "update available" notification (the check itself is identical
+  on every platform), but the download button opens the GitHub release
+  page rather than a direct file link. That's existing engine behavior,
+  not something this pass changed.

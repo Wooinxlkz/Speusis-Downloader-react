@@ -2,7 +2,11 @@
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-const DEFAULT_UPDATE_URL: &str = "https://api.github.com/repos/Wooinxlkz/Speusis-Downloader/releases/latest";
+// NOTE (v0.1.2, frontend rebuild): repointed from the original
+// Wooinxlkz/Speusis-Downloader to this fork's actual repo so update checks
+// find real releases instead of silently checking the wrong project
+// forever. One string changed, nothing else in this file touched.
+const DEFAULT_UPDATE_URL: &str = "https://api.github.com/repos/Wooinxlkz/Speusis-Downloader-react/releases/latest";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

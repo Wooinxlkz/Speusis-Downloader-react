@@ -21,11 +21,15 @@ import {
   Sun,
   Moon,
   ChevronDown,
+  X,
+  ArrowDownToLine,
 } from "lucide-react";
 import { useDownloadsStore } from "@/stores/downloads";
 import { useSettingsStore } from "@/stores/settings";
 import { useUIStore } from "@/stores/ui";
 import { useCategoryStore } from "@/stores/category";
+import { useSearchStore } from "@/stores/search";
+import { useUpdaterStore } from "@/stores/updater";
 import { ipc } from "@/lib/ipc";
 import { revealCategory } from "@/lib/categorize";
 
@@ -39,11 +43,13 @@ const EXT_GROUPS: Record<string, string[]> = {
 
 export function Sidebar() {
   const tasks = useDownloadsStore((s) => s.tasks);
-  const { settings, update } = useSettingsStore();
+  const { settings, update, load } = useSettingsStore();
   const open = useUIStore((s) => s.open);
   const openSettingsAt = useUIStore((s) => s.openSettingsAt);
   const category = useCategoryStore((s) => s.category);
   const setCategory = useCategoryStore((s) => s.set);
+  const query = useSearchStore((s) => s.query);
+  const setQuery = useSearchStore((s) => s.setQuery);
   const [drives, setDrives] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const toggleSection = (id: string) => setCollapsed((c) => ({ ...c, [id]: !c[id] }));
@@ -81,18 +87,28 @@ export function Sidebar() {
       <div data-tauri-drag-region className="h-[38px] flex-shrink-0" />
 
       <div className="px-2 pb-2">
-        <button className="flex w-full items-center gap-2 rounded-md border border-line-soft bg-bg px-2.5 py-1.5 text-[12.5px] text-faint transition-colors hover:border-line hover:text-muted">
-          <Search size={14} />
-          <span>Search downloads…</span>
-          <span className="ml-auto rounded border border-line px-1 text-[10px] text-faint">
-            ⌘K
-          </span>
-        </button>
+        <div className="flex w-full items-center gap-2 rounded-md border border-line-soft bg-bg px-2.5 py-1.5 text-[12.5px] transition-colors focus-within:border-line">
+          <Search size={14} className="flex-shrink-0 text-faint" />
+          <input
+            data-sidebar-search
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search downloads…"
+            className="w-full bg-transparent text-ink placeholder:text-faint focus:outline-none"
+          />
+          {query ? (
+            <button onClick={() => setQuery("")} className="flex-shrink-0 text-faint hover:text-ink">
+              <X size={12} />
+            </button>
+          ) : (
+            <span className="flex-shrink-0 rounded border border-line px-1 text-[10px] text-faint">⌘K</span>
+          )}
+        </div>
       </div>
 
       <SectionLabel>Speusis</SectionLabel>
       <nav className="flex flex-shrink-0 flex-col gap-px px-2">
-        <NavItem icon={<FolderOpen size={15} />} label="Folder" hint="⌘⇧F" onClick={() => ipc.settingsScanDownloadDir().catch(() => {})} />
+        <NavItem icon={<FolderOpen size={15} />} label="Folder" hint="⌘⇧F" onClick={() => ipc.settingsChooseDownloadDir().then(() => load())} />
         <NavItem icon={<CirclePlus size={15} />} label="Add URL" hint="⌘N" active onClick={() => open("addUrl")} />
         <NavItem icon={<Layers size={15} />} label="Torrent" hint="⌘T" onClick={() => open("openTorrent")} />
         <NavItem icon={<SearchCode size={15} />} label="Grabber" hint="⌘G" onClick={() => open("grabber")} />
@@ -137,6 +153,8 @@ export function Sidebar() {
           </>
         )}
       </div>
+
+      <UpdateRow />
 
       <div className="flex flex-shrink-0 items-center gap-1.5 border-t border-line-soft p-2">
         <button
@@ -263,3 +281,30 @@ function TreeItem({
   );
 }
 
+function UpdateRow() {
+  const status = useUpdaterStore((s) => s.status);
+  const release = useUpdaterStore((s) => s.release);
+  const download = useUpdaterStore((s) => s.download);
+  const check = useUpdaterStore((s) => s.check);
+  const initListener = useUpdaterStore((s) => s._initListener);
+
+  useEffect(() => {
+    initListener();
+    check();
+  }, [initListener, check]);
+
+  if (status !== "available") return null;
+
+  return (
+    <div className="flex-shrink-0 border-t border-line-soft px-2 py-1.5">
+      <button
+        onClick={() => download()}
+        className="flex w-full items-center gap-2 rounded-md bg-hover px-2.5 py-1.5 text-[12.5px] font-medium text-ink transition-colors duration-100 hover:bg-active"
+      >
+        <ArrowDownToLine size={14} strokeWidth={2} className="flex-shrink-0" />
+        <span className="truncate">Update to {release?.version}</span>
+        <span className="ml-auto flex-shrink-0 text-[11px] text-faint">Download</span>
+      </button>
+    </div>
+  );
+}

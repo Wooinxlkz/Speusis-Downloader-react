@@ -49,7 +49,7 @@ export function SegmentMapDialog() {
                   style={{
                     background: s.done
                       ? "var(--success)"
-                      : `linear-gradient(90deg, var(--info) ${Math.round(pct * 100)}%, var(--sunken) ${Math.round(pct * 100)}%)`,
+                      : `linear-gradient(90deg, var(--accent-ink) ${Math.round(pct * 100)}%, var(--sunken) ${Math.round(pct * 100)}%)`,
                     opacity: s.done ? 0.6 : 0.85,
                   }}
                 />

@@ -30,7 +30,7 @@ export function AboutDialog() {
     setUpdateMsg(null);
     try {
       const res = await ipc.updateCheck();
-      setUpdateMsg(res.available ? `Update available: v${res.info?.version}` : "You're up to date.");
+      setUpdateMsg(res.info ? `Update available: v${res.info.version}` : res.error ?? "You're up to date.");
     } catch (e) {
       setUpdateMsg(String(e));
     } finally {

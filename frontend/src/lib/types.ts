@@ -149,12 +149,14 @@ export interface PluginInfo {
 
 export interface UpdateInfo {
   version: string;
-  url: string;
-  notes: string | null;
+  downloadUrl: string;
+  downloadSize: number | null;
+  asarUrl: string | null;
+  releaseNotes: string;
 }
 export interface UpdateCheckResult {
-  available: boolean;
   info: UpdateInfo | null;
+  error: string | null;
 }
 
 // ---------- realtime event-bus payloads ----------

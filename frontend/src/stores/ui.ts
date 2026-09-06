@@ -24,18 +24,22 @@ interface UIState {
   dialog: DialogName;
   dialogTaskId: string | null;
   settingsTab: string;
+  sidebarHidden: boolean;
   open: (dialog: DialogName, taskId?: string) => void;
   close: () => void;
   setSettingsTab: (tab: string) => void;
   openSettingsAt: (tab: string) => void;
+  toggleSidebar: () => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
   dialog: null,
   dialogTaskId: null,
   settingsTab: "general",
+  sidebarHidden: false,
   open: (dialog, taskId) => set({ dialog, dialogTaskId: taskId ?? null }),
   close: () => set({ dialog: null, dialogTaskId: null }),
   setSettingsTab: (tab) => set({ settingsTab: tab }),
   openSettingsAt: (tab) => set({ dialog: "settings", settingsTab: tab }),
+  toggleSidebar: () => set((s) => ({ sidebarHidden: !s.sidebarHidden })),
 }));

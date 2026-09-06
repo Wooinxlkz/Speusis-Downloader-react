@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   MoreHorizontal,
   FileText,
@@ -23,7 +23,9 @@ import {
 } from "lucide-react";
 import { useDownloadsStore } from "@/stores/downloads";
 import { useCategoryStore } from "@/stores/category";
+import { useSearchStore } from "@/stores/search";
 import { useUIStore } from "@/stores/ui";
+import { MorphMenu } from "@/components/ui/MorphMenu";
 import { ipc } from "@/lib/ipc";
 import { fmtBytes, fmtEta } from "@/lib/format";
 import { badgeColor, extBadge, revealCategory } from "@/lib/categorize";
@@ -52,7 +54,9 @@ export function DownloadsTable() {
   const selectedId = useDownloadsStore((s) => s.selectedId);
   const select = useDownloadsStore((s) => s.select);
   const category = useCategoryStore((s) => s.category);
+  const query = useSearchStore((s) => s.query);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ taskId: string; x: number; y: number } | null>(null);
 
   useEffect(() => {
     refresh();
@@ -61,12 +65,18 @@ export function DownloadsTable() {
   }, [refresh]);
 
   const filtered = useMemo(() => {
-    if (category === "all") return tasks;
-    if (category === "unfinished") return tasks.filter((t) => t.status === "running" || t.status === "paused");
-    if (category === "finished") return tasks.filter((t) => t.status === "completed");
-    if (category === "queues") return tasks.filter((t) => t.status === "queued");
-    return tasks.filter((t) => revealCategory(t, EXT_GROUPS) === category);
-  }, [tasks, category]);
+    let list = tasks;
+    if (category === "unfinished") list = list.filter((t) => t.status === "running" || t.status === "paused");
+    else if (category === "finished") list = list.filter((t) => t.status === "completed");
+    else if (category === "queues") list = list.filter((t) => t.status === "queued");
+    else if (category !== "all") list = list.filter((t) => revealCategory(t, EXT_GROUPS) === category);
+
+    const q = query.trim().toLowerCase();
+    if (q) list = list.filter((t) => (t.filename || t.url).toLowerCase().includes(q));
+    return list;
+  }, [tasks, category, query]);
+
+  const ctxTask = ctxMenu ? tasks.find((t) => t.id === ctxMenu.taskId) : null;
 
   if (loaded && tasks.length === 0) {
     return (
@@ -108,10 +118,107 @@ export function DownloadsTable() {
           onSelect={() => select(t.id)}
           onMenu={() => setMenuFor(menuFor === t.id ? null : t.id)}
           onCloseMenu={() => setMenuFor(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            select(t.id);
+            setMenuFor(null);
+            setCtxMenu({ taskId: t.id, x: e.clientX, y: e.clientY });
+          }}
         />
       ))}
+
+      {ctxTask &&
+        createPortal(
+          <MorphMenu
+            open={!!ctxMenu}
+            onClose={() => setCtxMenu(null)}
+            fixed
+            align="start"
+            style={{ top: ctxMenu!.y, left: ctxMenu!.x }}
+          >
+            <RowActionItems
+              task={ctxTask}
+              onAction={(action) => {
+                setCtxMenu(null);
+                runTaskAction(ctxTask, action, refresh);
+              }}
+            />
+          </MorphMenu>,
+          document.body,
+        )}
     </div>
   );
+}
+
+async function runTaskAction(task: DownloadTask, action: string, refresh: () => void) {
+  const { open } = useUIStore.getState();
+  switch (action) {
+    case "pause":
+      await ipc.downloadPause(task.id);
+      break;
+    case "resume":
+      await ipc.downloadResume(task.id);
+      break;
+    case "cancel":
+      await ipc.downloadCancel(task.id);
+      break;
+    case "openFile":
+      await ipc.downloadOpenFile(task.id);
+      break;
+    case "openFolder":
+      await ipc.downloadOpenFolder(task.id);
+      break;
+    case "openWith":
+      await ipc.downloadOpenWith(task.id);
+      break;
+    case "play": {
+      const url = await ipc.downloadStreamingUrl(task.id);
+      const { open: openUrl } = await import("@tauri-apps/plugin-shell");
+      await openUrl(url);
+      break;
+    }
+    case "extractHere":
+      await ipc.archiveExtractHere(task.id);
+      break;
+    case "extractTo":
+      await ipc.archiveExtractTo(task.id);
+      break;
+    case "createZip":
+      await ipc.archiveCreateZip(task.id);
+      break;
+    case "copyUrl": {
+      const { writeText } = await import("@tauri-apps/plugin-clipboard-manager");
+      await writeText(task.url);
+      break;
+    }
+    case "redownload":
+    case "refreshUrl": {
+      const fresh = await ipc.downloadAdd({
+        url: task.url,
+        filename: task.filename ?? undefined,
+        label: task.label ?? undefined,
+        start: true,
+      });
+      if (fresh?.id) await ipc.downloadRemove(task.id, false);
+      break;
+    }
+    case "properties":
+      open("properties", task.id);
+      return;
+    case "rename":
+      open("rename", task.id);
+      return;
+    case "delete":
+      open("deleteConfirm", task.id);
+      return;
+    case "segmentMap":
+      open("segmentMap", task.id);
+      return;
+    case "torrentFiles":
+      open("torrentFiles", task.id);
+      return;
+  }
+  refresh();
 }
 
 function Row({
@@ -121,6 +228,7 @@ function Row({
   onSelect,
   onMenu,
   onCloseMenu,
+  onContextMenu,
 }: {
   task: DownloadTask;
   selected: boolean;
@@ -128,81 +236,16 @@ function Row({
   onSelect: () => void;
   onMenu: () => void;
   onCloseMenu: () => void;
+  onContextMenu: (e: React.MouseEvent) => void;
 }) {
   const refresh = useDownloadsStore((s) => s.refresh);
   const live = useDownloadsStore((s) => s.live[task.id]);
-  const open = useUIStore((s) => s.open);
   const pct = task.size ? Math.min(100, (task.receivedBytes / task.size) * 100) : 0;
-
-  async function runAction(action: string) {
-    onCloseMenu();
-    switch (action) {
-      case "pause":
-        await ipc.downloadPause(task.id);
-        break;
-      case "resume":
-        await ipc.downloadResume(task.id);
-        break;
-      case "cancel":
-        await ipc.downloadCancel(task.id);
-        break;
-      case "openFile":
-        await ipc.downloadOpenFile(task.id);
-        break;
-      case "openFolder":
-        await ipc.downloadOpenFolder(task.id);
-        break;
-      case "openWith":
-        await ipc.downloadOpenWith(task.id);
-        break;
-      case "play": {
-        const url = await ipc.downloadStreamingUrl(task.id);
-        const { open: openUrl } = await import("@tauri-apps/plugin-shell");
-        await openUrl(url);
-        break;
-      }
-      case "extractHere":
-        await ipc.archiveExtractHere(task.id);
-        break;
-      case "extractTo":
-        await ipc.archiveExtractTo(task.id);
-        break;
-      case "createZip":
-        await ipc.archiveCreateZip(task.id);
-        break;
-      case "copyUrl": {
-        const { writeText } = await import("@tauri-apps/plugin-clipboard-manager");
-        await writeText(task.url);
-        break;
-      }
-      case "redownload":
-      case "refreshUrl": {
-        const fresh = await ipc.downloadAdd({ url: task.url, filename: task.filename ?? undefined, label: task.label ?? undefined, start: true });
-        if (fresh?.id) await ipc.downloadRemove(task.id, false);
-        break;
-      }
-      case "properties":
-        open("properties", task.id);
-        return;
-      case "rename":
-        open("rename", task.id);
-        return;
-      case "delete":
-        open("deleteConfirm", task.id);
-        return;
-      case "segmentMap":
-        open("segmentMap", task.id);
-        return;
-      case "torrentFiles":
-        open("torrentFiles", task.id);
-        return;
-    }
-    refresh();
-  }
 
   return (
     <div
       onClick={onSelect}
+      onContextMenu={onContextMenu}
       className={`group relative grid grid-cols-[1fr_90px_150px_110px_100px_60px] items-center rounded-lg px-3 py-2 transition-colors ${
         selected ? "bg-active" : "hover:bg-hover"
       }`}
@@ -252,7 +295,15 @@ function Row({
         >
           <MoreHorizontal size={16} />
         </button>
-        <RowMenu open={menuOpen} task={task} onClose={onCloseMenu} onAction={runAction} />
+        <MorphMenu open={menuOpen} onClose={onCloseMenu} align="end" anchorClassName="top-8">
+          <RowActionItems
+            task={task}
+            onAction={(action) => {
+              onCloseMenu();
+              runTaskAction(task, action, refresh);
+            }}
+          />
+        </MorphMenu>
       </div>
     </div>
   );
@@ -290,124 +341,93 @@ function ScanBadge({ status }: { status: string }) {
   );
 }
 
-function RowMenu({
-  open,
-  task,
-  onAction,
-  onClose,
-}: {
-  open: boolean;
-  task: DownloadTask;
-  onAction: (action: string) => void;
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open, onClose]);
-
+/** The full action list, shared by the "..." button dropdown and the real
+ *  right-click context menu — same items, same gating, same handler, just
+ *  two different triggers into the same MorphMenu shell. */
+function RowActionItems({ task, onAction }: { task: DownloadTask; onAction: (action: string) => void }) {
   const isRunning = task.status === "running";
   const isPaused = task.status === "paused";
   const isDone = task.status === "completed";
   const canStop = isRunning || isPaused || task.status === "queued";
 
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          ref={ref}
-          onClick={(e) => e.stopPropagation()}
-          initial={{ opacity: 0, scale: 0.96, y: -4 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: -4 }}
-          transition={{ duration: 0.14, ease: [0.16, 1, 0.3, 1] }}
-          style={{ transformOrigin: "top right" }}
-          className="absolute right-0 top-8 z-20 w-56 rounded-xl border border-line bg-bg p-1 shadow-2xl"
-        >
-          <MenuItem icon={<FileText size={13} />} disabled={!isDone} onClick={() => onAction("openFile")}>
-            Open
-          </MenuItem>
-          <MenuItem icon={<ExternalLink size={13} />} disabled={!isDone} onClick={() => onAction("openWith")}>
-            Open with…
-          </MenuItem>
-          <MenuItem icon={<FolderOpen size={13} />} disabled={!task.outputPath} onClick={() => onAction("openFolder")}>
-            Open folder
-          </MenuItem>
-          {isMedia(task) && (
-            <MenuItem icon={<Play size={13} />} disabled={!isDone} onClick={() => onAction("play")}>
-              Play
-            </MenuItem>
-          )}
-
-          <Sep />
-          <MenuItem icon={<Play size={13} />} disabled={!isPaused} onClick={() => onAction("resume")}>
-            Resume download
-          </MenuItem>
-          <MenuItem icon={<PauseIcon size={13} />} disabled={!isRunning} onClick={() => onAction("pause")}>
-            Pause download
-          </MenuItem>
-          <MenuItem icon={<Square size={13} />} disabled={!canStop} onClick={() => onAction("cancel")}>
-            Stop download
-          </MenuItem>
-
-          {isArchive(task) && isDone && (
-            <>
-              <Sep />
-              <MenuItem icon={<FileArchive size={13} />} onClick={() => onAction("extractHere")}>
-                Extract here
-              </MenuItem>
-              <MenuItem icon={<FolderOutput size={13} />} onClick={() => onAction("extractTo")}>
-                Extract to…
-              </MenuItem>
-              <MenuItem icon={<FileArchiveIcon size={13} />} onClick={() => onAction("createZip")}>
-                Add to zip archive…
-              </MenuItem>
-            </>
-          )}
-
-          <Sep />
-          <MenuItem icon={<PenLine size={13} />} shortcut="Ctrl+M" onClick={() => onAction("rename")}>
-            Move / rename
-          </MenuItem>
-          <MenuItem icon={<RotateCw size={13} />} onClick={() => onAction("redownload")}>
-            Redownload
-          </MenuItem>
-          <MenuItem icon={<RefreshCw size={13} />} onClick={() => onAction("refreshUrl")}>
-            Refresh download address
-          </MenuItem>
-          <MenuItem icon={<Link2 size={13} />} onClick={() => onAction("copyUrl")}>
-            Copy URL
-          </MenuItem>
-
-          <Sep />
-          <MenuItem icon={<Info size={13} />} onClick={() => onAction("properties")}>
-            Properties
-          </MenuItem>
-          <MenuItem icon={<Grid3x3 size={13} />} onClick={() => onAction("segmentMap")}>
-            Segment map
-          </MenuItem>
-          <MenuItem icon={<Radar size={13} />} disabled title="Not available in this engine build">
-            Tracer
-          </MenuItem>
-          {task.kind === "torrent" && (
-            <MenuItem icon={<Layers size={13} />} onClick={() => onAction("torrentFiles")}>
-              Torrent files…
-            </MenuItem>
-          )}
-
-          <Sep />
-          <MenuItem icon={<Trash2 size={13} />} danger onClick={() => onAction("delete")}>
-            Delete
-          </MenuItem>
-        </motion.div>
+    <>
+      <MenuItem icon={<FileText size={13} />} disabled={!isDone} onClick={() => onAction("openFile")}>
+        Open
+      </MenuItem>
+      <MenuItem icon={<ExternalLink size={13} />} disabled={!isDone} onClick={() => onAction("openWith")}>
+        Open with…
+      </MenuItem>
+      <MenuItem icon={<FolderOpen size={13} />} disabled={!task.outputPath} onClick={() => onAction("openFolder")}>
+        Open folder
+      </MenuItem>
+      {isMedia(task) && (
+        <MenuItem icon={<Play size={13} />} disabled={!isDone} onClick={() => onAction("play")}>
+          Play
+        </MenuItem>
       )}
-    </AnimatePresence>
+
+      <Sep />
+      <MenuItem icon={<Play size={13} />} disabled={!isPaused} onClick={() => onAction("resume")}>
+        Resume download
+      </MenuItem>
+      <MenuItem icon={<PauseIcon size={13} />} disabled={!isRunning} onClick={() => onAction("pause")}>
+        Pause download
+      </MenuItem>
+      <MenuItem icon={<Square size={13} />} disabled={!canStop} onClick={() => onAction("cancel")}>
+        Stop download
+      </MenuItem>
+
+      {isArchive(task) && isDone && (
+        <>
+          <Sep />
+          <MenuItem icon={<FileArchive size={13} />} onClick={() => onAction("extractHere")}>
+            Extract here
+          </MenuItem>
+          <MenuItem icon={<FolderOutput size={13} />} onClick={() => onAction("extractTo")}>
+            Extract to…
+          </MenuItem>
+          <MenuItem icon={<FileArchiveIcon size={13} />} onClick={() => onAction("createZip")}>
+            Add to zip archive…
+          </MenuItem>
+        </>
+      )}
+
+      <Sep />
+      <MenuItem icon={<PenLine size={13} />} shortcut="Ctrl+M" onClick={() => onAction("rename")}>
+        Move / rename
+      </MenuItem>
+      <MenuItem icon={<RotateCw size={13} />} onClick={() => onAction("redownload")}>
+        Redownload
+      </MenuItem>
+      <MenuItem icon={<RefreshCw size={13} />} onClick={() => onAction("refreshUrl")}>
+        Refresh download address
+      </MenuItem>
+      <MenuItem icon={<Link2 size={13} />} onClick={() => onAction("copyUrl")}>
+        Copy URL
+      </MenuItem>
+
+      <Sep />
+      <MenuItem icon={<Info size={13} />} onClick={() => onAction("properties")}>
+        Properties
+      </MenuItem>
+      <MenuItem icon={<Grid3x3 size={13} />} onClick={() => onAction("segmentMap")}>
+        Segment map
+      </MenuItem>
+      <MenuItem icon={<Radar size={13} />} disabled title="Not available in this engine build">
+        Tracer
+      </MenuItem>
+      {task.kind === "torrent" && (
+        <MenuItem icon={<Layers size={13} />} onClick={() => onAction("torrentFiles")}>
+          Torrent files…
+        </MenuItem>
+      )}
+
+      <Sep />
+      <MenuItem icon={<Trash2 size={13} />} danger onClick={() => onAction("delete")}>
+        Delete
+      </MenuItem>
+    </>
   );
 }
 
