@@ -114,23 +114,43 @@ for you if you use `cargo tauri build` from `src-tauri/`.)
 
 ## Version
 
-**0.1.2** — real functionality pass: fixed the graph's width cap (was
-capped at 340px, now genuinely fills the status strip), fixed the Folder
-button (was calling the wrong command), added a real working search (was
-a non-functional placeholder button), a real right-click context menu
-(the old dropdown only worked via the "..." button) sharing one action
-list with it, Xuro's actual "morph" popover motion (clip-path growing
-from the trigger corner with real spring physics, not just fade+scale),
-a real collapsible sidebar (`⌘\`) matching Xuro's `SPRING_PANEL`, a real
-update-notification row wired to the backend's actual `update-available`
-event, a real (if partial-coverage) language switcher using the original
-app's translation files, and three new Settings tabs (Security, Advanced,
-Shortcuts) plus the fields that were missing from the others (`tempDir`,
-browser-extension buttons). One real backend fix too — see "Backend fix"
-below. Full details in the changelog further down. Bumped across
-`frontend/package.json`, `src-tauri/Cargo.toml`, and `tauri.conf.json`.
-`speusis-core`'s own crate version (0.4.6) was left alone since it's
-unmodified library code, except for the one line noted below.
+**0.1.3** — real-bug fix pass, found by actually testing against the real
+backend instead of assuming my types were right:
+
+- **Accent colors** — 3 of 6 were silently broken. My frontend invented
+  names (`amber`/`violet`/`rose`) that don't exist in the backend's real
+  `AccentColor` enum (`blue/green/purple/orange/red/teal/slate`), so
+  `settings_update` was rejecting those 3 every time. Fixed the type, the
+  CSS, and the picker to match the real enum — and added `teal`, a real
+  7th option that was missing entirely.
+- **Language switching did nothing.** 0.1.2 built the whole i18n
+  infrastructure (real store, real dropdown, real translation files) but
+  never actually called it from any component — selecting a language
+  changed internal state with zero visible effect. Now wired into the
+  Sidebar nav, Toolbar labels, and Settings tab labels — only for strings
+  that have a real matching key in the language files, checked one by one
+  rather than assumed.
+- **Language dropdown now uses the same `MorphMenu` motion as everything
+  else** instead of a plain native `<select>`.
+- **Security scan badge** — wrong field name (`detail` vs the real
+  `message`), missing the `skipped` status entirely, and "Threat found"
+  where the old app said "Threat". Fixed all three, added the tooltip.
+- **Logins dialog was unreachable** — built and registered since 0.1.0,
+  but no button anywhere opened it. Added next to Folder in the sidebar,
+  matching where it sat in the old toolbar.
+- **Settings was missing the "View map" button** next to Segments per
+  download — the old app had it, opening the segment map for whatever's
+  currently selected in the main list. Added, with the same behavior.
+- **Segment map dialog rebuilt** — real no-selection / loading / not-
+  segmented / ready states instead of one generic message, task name in
+  the subtitle, a legend, and a total-progress readout. It already used
+  the same shared `Modal` every other dialog uses, so "opens the same
+  way" was already true structurally — this pass is about it actually
+  looking and behaving as finished as the rest.
+
+Bumped across `frontend/package.json`, `src-tauri/Cargo.toml`, and
+`tauri.conf.json`. `speusis-core`'s crate version (0.4.6) stays put —
+still unmodified except the one `update_checker.rs` line from 0.1.2.
 
 ### Backend fix (the one deliberate exception to "untouched engine")
 

@@ -23,6 +23,7 @@ import {
   ChevronDown,
   X,
   ArrowDownToLine,
+  KeyRound,
 } from "lucide-react";
 import { useDownloadsStore } from "@/stores/downloads";
 import { useSettingsStore } from "@/stores/settings";
@@ -30,6 +31,7 @@ import { useUIStore } from "@/stores/ui";
 import { useCategoryStore } from "@/stores/category";
 import { useSearchStore } from "@/stores/search";
 import { useUpdaterStore } from "@/stores/updater";
+import { useT } from "@/lib/i18n";
 import { ipc } from "@/lib/ipc";
 import { revealCategory } from "@/lib/categorize";
 
@@ -50,6 +52,7 @@ export function Sidebar() {
   const setCategory = useCategoryStore((s) => s.set);
   const query = useSearchStore((s) => s.query);
   const setQuery = useSearchStore((s) => s.setQuery);
+  const t = useT();
   const [drives, setDrives] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const toggleSection = (id: string) => setCollapsed((c) => ({ ...c, [id]: !c[id] }));
@@ -108,12 +111,13 @@ export function Sidebar() {
 
       <SectionLabel>Speusis</SectionLabel>
       <nav className="flex flex-shrink-0 flex-col gap-px px-2">
-        <NavItem icon={<FolderOpen size={15} />} label="Folder" hint="⌘⇧F" onClick={() => ipc.settingsChooseDownloadDir().then(() => load())} />
-        <NavItem icon={<CirclePlus size={15} />} label="Add URL" hint="⌘N" active onClick={() => open("addUrl")} />
-        <NavItem icon={<Layers size={15} />} label="Torrent" hint="⌘T" onClick={() => open("openTorrent")} />
-        <NavItem icon={<SearchCode size={15} />} label="Grabber" hint="⌘G" onClick={() => open("grabber")} />
-        <NavItem icon={<ClipboardList size={15} />} label="Batch" hint="⌘B" onClick={() => open("batch")} />
-        <NavItem icon={<ShoppingBasket size={15} />} label="Basket" hint="⌘E" onClick={() => ipc.basketOpen().catch(() => {})} />
+        <NavItem icon={<FolderOpen size={15} />} label={t("folder", "Folder")} hint="⌘⇧F" onClick={() => ipc.settingsChooseDownloadDir().then(() => load())} />
+        <NavItem icon={<KeyRound size={15} />} label={t("logins", "Logins")} onClick={() => open("logins")} />
+        <NavItem icon={<CirclePlus size={15} />} label={t("add_url", "Add URL").replace("…", "")} hint="⌘N" active onClick={() => open("addUrl")} />
+        <NavItem icon={<Layers size={15} />} label={t("torrent", "Torrent")} hint="⌘T" onClick={() => open("openTorrent")} />
+        <NavItem icon={<SearchCode size={15} />} label={t("grabber", "Grabber")} hint="⌘G" onClick={() => open("grabber")} />
+        <NavItem icon={<ClipboardList size={15} />} label={t("batch", "Batch")} hint="⌘B" onClick={() => open("batch")} />
+        <NavItem icon={<ShoppingBasket size={15} />} label={t("basket", "Basket")} hint="⌘E" onClick={() => ipc.basketOpen().catch(() => {})} />
       </nav>
 
       {/* Only this zone scrolls — quick actions above and the settings

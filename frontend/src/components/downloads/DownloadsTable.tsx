@@ -265,7 +265,7 @@ function Row({
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-1">
           <Badge status={task.status} />
-          {task.securityScan && <ScanBadge status={task.securityScan.status} />}
+          <ScanBadge scan={task.securityScan} />
         </div>
         {task.status === "running" && (
           <div className="relative h-1 w-full max-w-[120px] overflow-hidden rounded-full bg-sunken">
@@ -326,16 +326,21 @@ function Badge({ status }: { status: DownloadTask["status"] }) {
   );
 }
 
-function ScanBadge({ status }: { status: string }) {
+function ScanBadge({ scan }: { scan: DownloadTask["securityScan"] }) {
+  if (!scan) return null;
   const map: Record<string, { label: string; cls: string }> = {
-    pending: { label: "Scanning", cls: "text-muted bg-sunken border-line" },
+    pending: { label: "Scanning", cls: "text-info bg-info-bg border-info-line" },
     clean: { label: "Clean", cls: "text-success bg-success-bg border-success-line" },
-    "threats-found": { label: "Threat found", cls: "text-danger bg-warning-bg border-warning-line" },
+    "threats-found": { label: "Threat", cls: "text-danger bg-warning-bg border-warning-line" },
     failed: { label: "Scan failed", cls: "text-faint bg-panel border-line" },
+    skipped: { label: "Not scanned", cls: "text-faint bg-panel border-line" },
   };
-  const m = map[status] ?? map.pending;
+  const m = map[scan.status] ?? { label: scan.status, cls: "text-faint bg-panel border-line" };
   return (
-    <span className={`inline-flex w-fit items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${m.cls}`}>
+    <span
+      title={scan.message ?? undefined}
+      className={`inline-flex w-fit items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${m.cls}`}
+    >
       {m.label}
     </span>
   );

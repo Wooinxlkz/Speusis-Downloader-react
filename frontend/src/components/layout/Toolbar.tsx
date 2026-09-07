@@ -15,6 +15,7 @@ import {
 import { useDownloadsStore } from "@/stores/downloads";
 import { useUIStore } from "@/stores/ui";
 import { ipc } from "@/lib/ipc";
+import { useT } from "@/lib/i18n";
 
 export function Toolbar() {
   const tasks = useDownloadsStore((s) => s.tasks);
@@ -22,6 +23,7 @@ export function Toolbar() {
   const refresh = useDownloadsStore((s) => s.refresh);
   const open = useUIStore((s) => s.open);
   const openSettingsAt = useUIStore((s) => s.openSettingsAt);
+  const t = useT();
 
   async function resumeSelected() {
     if (selectedId) await ipc.downloadResume(selectedId);
@@ -59,21 +61,21 @@ export function Toolbar() {
 
   return (
     <div className="flex flex-wrap items-center gap-0.5 border-b border-line-soft px-3 py-1.5">
-      <TbBtn icon={<Play size={17} />} label="Resume" onClick={resumeSelected} />
-      <TbBtn icon={<Pause size={17} />} label="Pause" onClick={pauseSelected} />
-      <TbBtn icon={<Square size={17} />} label="Stop" onClick={stopSelected} />
+      <TbBtn icon={<Play size={17} />} label={t("resume", "Resume")} onClick={resumeSelected} />
+      <TbBtn icon={<Pause size={17} />} label={t("pause", "Pause")} onClick={pauseSelected} />
+      <TbBtn icon={<Square size={17} />} label={t("stop", "Stop")} onClick={stopSelected} />
       <Sep />
-      <TbBtn icon={<Trash2 size={17} />} label="Delete" onClick={deleteSelected} />
-      <TbBtn icon={<Clock size={17} />} label="Scheduler" onClick={() => openSettingsAt("schedule")} />
-      <TbBtn icon={<Rss size={17} />} label="RSS" onClick={() => open("rss")} />
-      <TbBtn icon={<Share2 size={17} />} label="Mk Torrent" onClick={() => open("createTorrent")} />
+      <TbBtn icon={<Trash2 size={17} />} label={t("delete", "Delete")} onClick={deleteSelected} />
+      <TbBtn icon={<Clock size={17} />} label={t("scheduler", "Scheduler")} onClick={() => openSettingsAt("schedule")} />
+      <TbBtn icon={<Rss size={17} />} label={t("rss", "RSS")} onClick={() => open("rss")} />
+      <TbBtn icon={<Share2 size={17} />} label={t("mk_torrent", "Mk Torrent")} onClick={() => open("createTorrent")} />
       <Sep />
-      <TbBtn icon={<FastForward size={17} />} label="Start Q." onClick={startQueue} />
-      <TbBtn icon={<PauseOctagon size={17} />} label="Stop Q." onClick={stopQueue} />
+      <TbBtn icon={<FastForward size={17} />} label={t("start_queue", "Start queue")} onClick={startQueue} />
+      <TbBtn icon={<PauseOctagon size={17} />} label={t("stop_queue", "Stop queue")} onClick={stopQueue} />
       <div className="flex-1" />
-      <TbBtn icon={<Star size={17} />} label="Register" onClick={() => open("registration")} />
-      <TbBtn icon={<HelpCircle size={17} />} label="Help" onClick={() => open("help")} />
-      <TbBtn icon={<Info size={17} />} label="About" onClick={() => open("about")} />
+      <TbBtn icon={<Star size={17} />} label={t("register", "Register")} onClick={() => open("registration")} />
+      <TbBtn icon={<HelpCircle size={17} />} label={t("help", "Help")} onClick={() => open("help")} />
+      <TbBtn icon={<Info size={17} />} label={t("about", "About")} onClick={() => open("about")} />
       <TbBtn icon={<Square size={17} />} hidden label="Stop All" onClick={stopAll} />
     </div>
   );

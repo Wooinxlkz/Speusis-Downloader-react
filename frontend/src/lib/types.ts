@@ -12,9 +12,10 @@ export type DownloadStatus =
   | "cancelled";
 
 export interface SecurityScanInfo {
-  status: "pending" | "clean" | "threats-found" | "failed";
+  status: "pending" | "clean" | "threats-found" | "failed" | "skipped";
   scanner: string;
-  detail: string | null;
+  message: string | null;
+  scannedAt: number | null;
 }
 
 export interface TorrentFileEntry {
@@ -66,7 +67,7 @@ export interface DownloadInput {
 }
 
 export type ThemeMode = "system" | "light" | "dark";
-export type AccentColor = "slate" | "blue" | "green" | "amber" | "violet" | "rose";
+export type AccentColor = "slate" | "blue" | "green" | "purple" | "orange" | "red" | "teal";
 
 export interface SiteCredential {
   domain: string;

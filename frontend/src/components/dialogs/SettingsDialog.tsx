@@ -13,25 +13,31 @@ import {
   SlidersHorizontal,
   Keyboard,
   Globe,
+  ChevronDown,
+  Grid3x3,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui";
 import { useSettingsStore } from "@/stores/settings";
+import { useDownloadsStore } from "@/stores/downloads";
 import { FieldRow, Switch, TextInput, Button } from "./Modal";
+import { MorphMenu } from "@/components/ui/MorphMenu";
 import { ipc } from "@/lib/ipc";
-import { LANGUAGES, useI18nStore } from "@/lib/i18n";
+import { LANGUAGES, useI18nStore, useT } from "@/lib/i18n";
 import type { AccentColor, ThemeMode } from "@/lib/types";
 
-const TABS: { id: string; label: string; icon: React.ReactNode; desc: string }[] = [
-  { id: "general", label: "General", icon: <SettingsIcon size={14} />, desc: "Folders and default behavior" },
-  { id: "downloads", label: "Downloads", icon: <Download size={14} />, desc: "Concurrency, retries, file handling" },
-  { id: "connections", label: "Connections", icon: <Share2 size={14} />, desc: "Bandwidth, network, browser extension" },
-  { id: "security", label: "Security", icon: <ShieldCheck size={14} />, desc: "File scanning and IP protection" },
-  { id: "schedule", label: "Schedule", icon: <Clock size={14} />, desc: "Auto start/stop and peak hours" },
-  { id: "advanced", label: "Advanced", icon: <SlidersHorizontal size={14} />, desc: "Torrent seeding and engine internals" },
-  { id: "appearance", label: "Appearance", icon: <Palette size={14} />, desc: "Theme, accent color, and language" },
-  { id: "shortcuts", label: "Shortcuts", icon: <Keyboard size={14} />, desc: "Keyboard shortcuts reference" },
-  { id: "about", label: "About", icon: <Info size={14} />, desc: "Version and app info" },
-];
+function getTabs(t: (key: string, fallback: string) => string): { id: string; label: string; icon: React.ReactNode; desc: string }[] {
+  return [
+    { id: "general", label: t("general", "General"), icon: <SettingsIcon size={14} />, desc: "Folders and default behavior" },
+    { id: "downloads", label: t("downloads", "Downloads"), icon: <Download size={14} />, desc: "Concurrency, retries, file handling" },
+    { id: "connections", label: "Connections", icon: <Share2 size={14} />, desc: "Bandwidth, network, browser extension" },
+    { id: "security", label: t("security", "Security"), icon: <ShieldCheck size={14} />, desc: "File scanning and IP protection" },
+    { id: "schedule", label: "Schedule", icon: <Clock size={14} />, desc: "Auto start/stop and peak hours" },
+    { id: "advanced", label: t("advanced", "Advanced"), icon: <SlidersHorizontal size={14} />, desc: "Torrent seeding and engine internals" },
+    { id: "appearance", label: t("appearance", "Appearance"), icon: <Palette size={14} />, desc: "Theme, accent color, and language" },
+    { id: "shortcuts", label: "Shortcuts", icon: <Keyboard size={14} />, desc: "Keyboard shortcuts reference" },
+    { id: "about", label: t("about", "About"), icon: <Info size={14} />, desc: "Version and app info" },
+  ];
+}
 
 export function SettingsDialog() {
   const dialog = useUIStore((s) => s.dialog);
@@ -47,7 +53,9 @@ export function SettingsDialog() {
     if (open) ipc.appGetVersion().then(setVersion).catch(() => setVersion("unknown"));
   }, [open, settings, load]);
 
-  const tab = TABS.find((t) => t.id === settingsTab) ?? TABS[0];
+  const t = useT();
+  const TABS = getTabs(t);
+  const tab = TABS.find((tb) => tb.id === settingsTab) ?? TABS[0];
 
   return (
     <div
@@ -74,16 +82,16 @@ export function SettingsDialog() {
             </div>
           </div>
           <nav className="flex flex-col gap-0.5 px-2.5">
-            {TABS.map((t) => (
+            {TABS.map((tb) => (
               <button
-                key={t.id}
-                onClick={() => setSettingsTab(t.id)}
+                key={tb.id}
+                onClick={() => setSettingsTab(tb.id)}
                 className={`flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-left text-[12.5px] font-medium transition-colors ${
-                  t.id === tab.id ? "bg-hover text-ink" : "text-muted hover:bg-hover hover:text-ink"
+                  tb.id === tab.id ? "bg-hover text-ink" : "text-muted hover:bg-hover hover:text-ink"
                 }`}
               >
-                <span className="opacity-85">{t.icon}</span>
-                {t.label}
+                <span className="opacity-85">{tb.icon}</span>
+                {tb.label}
               </button>
             ))}
           </nav>
@@ -202,7 +210,10 @@ function DownloadsTab({ settings, update }: { settings: Settings; update: Update
           <NumberInput value={settings.maxConcurrentDownloads} onChange={(v) => update({ maxConcurrentDownloads: v })} min={1} max={20} />
         </FieldRow>
         <FieldRow label="Segments per download">
-          <NumberInput value={settings.defaultSegments} onChange={(v) => update({ defaultSegments: v })} min={1} max={32} />
+          <div className="flex items-center gap-1.5">
+            <NumberInput value={settings.defaultSegments} onChange={(v) => update({ defaultSegments: v })} min={1} max={32} />
+            <ViewMapButton />
+          </div>
         </FieldRow>
         <FieldRow label="Max retries on failure">
           <NumberInput value={settings.maxRetries} onChange={(v) => update({ maxRetries: v })} min={0} max={20} />
@@ -344,9 +355,10 @@ const ACCENTS: { id: AccentColor; hex: string }[] = [
   { id: "slate", hex: "#6e6e6a" },
   { id: "blue", hex: "#3457b2" },
   { id: "green", hex: "#2f7d4f" },
-  { id: "amber", hex: "#96631c" },
-  { id: "violet", hex: "#7a5cc9" },
-  { id: "rose", hex: "#b23a2e" },
+  { id: "orange", hex: "#96631c" },
+  { id: "purple", hex: "#7a5cc9" },
+  { id: "red", hex: "#b23a2e" },
+  { id: "teal", hex: "#2b7a78" },
 ];
 
 function AppearanceTab({ settings, update }: { settings: Settings; update: Update }) {
@@ -396,26 +408,41 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Updat
 function LanguageGroup() {
   const language = useI18nStore((s) => s.language);
   const setLanguage = useI18nStore((s) => s.setLanguage);
+  const [open, setOpen] = useState(false);
+  const current = LANGUAGES.find((l) => l.code === language) ?? LANGUAGES[0];
+
   return (
     <Group
       title="Language"
       desc="Translations come from the original app's language files - coverage is real but partial for this rebuild's new screens"
     >
-      <div className="py-1.5">
-        <div className="relative">
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            className="w-full appearance-none rounded-lg border border-line bg-panel px-2.5 py-1.5 pr-8 text-[12.5px] text-ink focus:border-faint focus:outline-none"
-          >
+      <div className="relative py-1.5">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex w-full items-center gap-2 rounded-lg border border-line bg-panel px-2.5 py-1.5 text-[12.5px] text-ink transition-colors hover:border-faint"
+        >
+          <Globe size={13} className="flex-shrink-0 text-faint" />
+          <span>{current.label}</span>
+          <ChevronDown size={13} className={`ml-auto flex-shrink-0 text-faint transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
+        </button>
+        <MorphMenu open={open} onClose={() => setOpen(false)} align="start" width={220} anchorClassName="top-[calc(100%+4px)]">
+          <div className="max-h-64 overflow-y-auto">
             {LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>
+              <button
+                key={l.code}
+                onClick={() => {
+                  setLanguage(l.code);
+                  setOpen(false);
+                }}
+                className={`flex h-8 w-full items-center rounded-lg px-2.5 text-left text-[12.5px] transition-colors ${
+                  l.code === language ? "bg-hover font-medium text-ink" : "text-ink hover:bg-hover"
+                }`}
+              >
                 {l.label}
-              </option>
+              </button>
             ))}
-          </select>
-          <Globe size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-faint" />
-        </div>
+          </div>
+        </MorphMenu>
       </div>
     </Group>
   );
@@ -461,6 +488,19 @@ function AboutTab() {
     <Group title="Speusis Downloader" desc="Native desktop download manager — HTTP, FTP, and BitTorrent in one app.">
       <p className="py-1.5 font-mono text-[11px] text-faint">Version {version}</p>
     </Group>
+  );
+}
+
+function ViewMapButton() {
+  const selectedId = useDownloadsStore((s) => s.selectedId);
+  return (
+    <Button
+      onClick={() => useUIStore.getState().open("segmentMap", selectedId ?? undefined)}
+      title={selectedId ? undefined : "Select a download in the main list first"}
+      className="flex items-center gap-1.5"
+    >
+      <Grid3x3 size={13} /> View map
+    </Button>
   );
 }
 

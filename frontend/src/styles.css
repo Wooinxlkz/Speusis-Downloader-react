@@ -114,7 +114,13 @@
 }
 
 /* Accent presets - selected in Settings -> Appearance, persisted via
-   settings_update({ accentColor }) and applied as data-accent on <html>. */
+   settings_update({ accentColor }) and applied as data-accent on <html>.
+   Values must match speusis-core's real AccentColor enum wire format
+   exactly (serde rename_all = "lowercase": blue/green/purple/orange/red/
+   teal/slate) - three of these used to be invented names (amber/violet/
+   rose) that don't exist on the backend, so those settings_update calls
+   silently failed. Fixed, and "teal" (a real 7th option) was missing
+   entirely. */
 :root[data-accent="blue"] {
   --accent: oklch(0.55 0.16 255);
   --accent-indicator: var(--accent);
@@ -125,18 +131,23 @@
   --accent-indicator: var(--accent);
   --accent-ink: var(--accent);
 }
-:root[data-accent="amber"] {
+:root[data-accent="orange"] {
   --accent: oklch(0.62 0.17 55);
   --accent-indicator: var(--accent);
   --accent-ink: var(--accent);
 }
-:root[data-accent="violet"] {
+:root[data-accent="purple"] {
   --accent: oklch(0.5 0.17 300);
   --accent-indicator: var(--accent);
   --accent-ink: var(--accent);
 }
-:root[data-accent="rose"] {
+:root[data-accent="red"] {
   --accent: oklch(0.55 0.19 25);
+  --accent-indicator: var(--accent);
+  --accent-ink: var(--accent);
+}
+:root[data-accent="teal"] {
+  --accent: oklch(0.55 0.12 195);
   --accent-indicator: var(--accent);
   --accent-ink: var(--accent);
 }
