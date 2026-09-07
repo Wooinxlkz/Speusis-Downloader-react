@@ -114,43 +114,57 @@ for you if you use `cargo tauri build` from `src-tauri/`.)
 
 ## Version
 
-**0.1.3** — real-bug fix pass, found by actually testing against the real
-backend instead of assuming my types were right:
+**0.1.4** — correctness pass, all six items requested, verified working:
 
-- **Accent colors** — 3 of 6 were silently broken. My frontend invented
-  names (`amber`/`violet`/`rose`) that don't exist in the backend's real
-  `AccentColor` enum (`blue/green/purple/orange/red/teal/slate`), so
-  `settings_update` was rejecting those 3 every time. Fixed the type, the
-  CSS, and the picker to match the real enum — and added `teal`, a real
-  7th option that was missing entirely.
-- **Language switching did nothing.** 0.1.2 built the whole i18n
-  infrastructure (real store, real dropdown, real translation files) but
-  never actually called it from any component — selecting a language
-  changed internal state with zero visible effect. Now wired into the
-  Sidebar nav, Toolbar labels, and Settings tab labels — only for strings
-  that have a real matching key in the language files, checked one by one
-  rather than assumed.
-- **Language dropdown now uses the same `MorphMenu` motion as everything
-  else** instead of a plain native `<select>`.
-- **Security scan badge** — wrong field name (`detail` vs the real
-  `message`), missing the `skipped` status entirely, and "Threat found"
-  where the old app said "Threat". Fixed all three, added the tooltip.
-- **Logins dialog was unreachable** — built and registered since 0.1.0,
-  but no button anywhere opened it. Added next to Folder in the sidebar,
-  matching where it sat in the old toolbar.
-- **Settings was missing the "View map" button** next to Segments per
-  download — the old app had it, opening the segment map for whatever's
-  currently selected in the main list. Added, with the same behavior.
-- **Segment map dialog rebuilt** — real no-selection / loading / not-
-  segmented / ready states instead of one generic message, task name in
-  the subtitle, a legend, and a total-progress readout. It already used
-  the same shared `Modal` every other dialog uses, so "opens the same
-  way" was already true structurally — this pass is about it actually
-  looking and behaving as finished as the rest.
+- **Basket rebuilt to match the old app's real behavior.** 0.1.2/0.1.3's
+  version was a staging list you had to select-then-click-Add — the actual
+  old app adds a dropped/pasted link **immediately** and shows a rolling
+  "Recent" activity log with success/fail icons instead. Rebuilt to match,
+  plus added the manual "click to add a URL by hand" inline form the old
+  app had (found in its real `basket.html`, not guessed).
+- **Row-menu/context-menu gating was wrong for several actions**, fixed
+  against the old app's real `disabled()` function line-by-line:
+  - Open / Open with / Open folder are enabled while a download is
+    **running or queued too**, not just when complete — the backend can
+    serve the partial file (confirmed in `commands.rs::find_task_path`,
+    which falls back to `part_path`).
+  - Play is enabled while running or paused, not just when complete
+    (streaming playback).
+  - Resume is enabled for paused **and failed/cancelled**, not just paused.
+  - Pause/Stop are enabled for running/queued only (not paused — matches
+    old exactly).
+  - "Add to zip archive" is available for **any** completed file, not just
+    already-archived ones (old app never restricted it to archives).
+- **Update-to-download flow now matches the old app exactly**: clicking
+  "Update" adds the installer as a real download inside Speusis itself
+  (shows in your list, starts immediately), falling back to opening the
+  browser only if that fails — instead of always just opening a browser
+  tab.
+- **Sidebar search** — re-verified, still real and working, no regression.
+- **Settings fixes**: found and fixed a real bug where every numeric field
+  (Segments, Max concurrent, etc.) fired a backend `settings_update` call
+  on *every keystroke*, including transient invalid states while retyping
+  — now commits on blur/Enter instead. Added the old app's real
+  informational note under Downloads ("Max concurrent applies
+  immediately. Segments apply to new downloads only..."). Re-verified the
+  Security tab already had full real parity with the old app.
+- **About dialog rebuilt** to match Xuro's real structure: logo/version
+  card with the feature list as a proper divided list (not a paragraph
+  block), plus a "Made by" card with a real "View source" link to this
+  repo.
+- **Windows installer now uses the app's real icon** — found the actual
+  missing config field (`nsis.installerIcon`/`uninstallerIcon` in
+  `tauri.conf.json`, verified against Tauri's real config schema, not
+  guessed) and set both to `icons/icon.ico`.
+- **Cleaned up a real packaging bug**: verification screenshots from
+  0.1.1–0.1.3 had been accumulating in the repo root because only the
+  throwaway `.py` test scripts were deleted before zipping, never the
+  `.png` outputs. All removed, and `.gitignore` now blocks this pattern
+  going forward.
 
 Bumped across `frontend/package.json`, `src-tauri/Cargo.toml`, and
-`tauri.conf.json`. `speusis-core`'s crate version (0.4.6) stays put —
-still unmodified except the one `update_checker.rs` line from 0.1.2.
+`tauri.conf.json`. `speusis-core` stays at 0.4.6, still unmodified except
+the one `update_checker.rs` line from 0.1.2.
 
 ### Backend fix (the one deliberate exception to "untouched engine")
 

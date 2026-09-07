@@ -2,3 +2,10 @@ node_modules/
 dist/
 target/
 *.log
+
+# debug/verification screenshots and throwaway test scripts - these should
+# never be committed; a past version accidentally left several in the repo
+/v0*.png
+/v0*.py
+/*_screenshot*.py
+/*_shot*.py

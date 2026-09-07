@@ -46,10 +46,12 @@
         ],
         "headerImage": "nsis-header.bmp",
         "sidebarImage": "nsis-sidebar.bmp",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
         "installerHooks": "installer-hooks.nsh"
       }
     },
     "fileAssociations": []
   },
-  "version": "0.1.3"
+  "version": "0.1.4"
 }

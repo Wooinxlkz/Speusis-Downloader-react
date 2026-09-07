@@ -350,52 +350,60 @@ function ScanBadge({ scan }: { scan: DownloadTask["securityScan"] }) {
  *  right-click context menu — same items, same gating, same handler, just
  *  two different triggers into the same MorphMenu shell. */
 function RowActionItems({ task, onAction }: { task: DownloadTask; onAction: (action: string) => void }) {
-  const isRunning = task.status === "running";
-  const isPaused = task.status === "paused";
+  // Exact gating rules from the old vanilla app's real actionMenuMarkup()
+  // (app.js) - not guessed. isPlayable and "open*" both include "running"
+  // because the backend can serve a partial/in-progress file (streaming
+  // playback, checking progress in the folder) without waiting for
+  // completion.
   const isDone = task.status === "completed";
-  const canStop = isRunning || isPaused || task.status === "queued";
+  const isActive = task.status === "running" || task.status === "queued";
+  const isPlayable = task.status === "running" || task.status === "paused" || task.status === "completed";
+  const isPausedOrFailed = task.status === "paused" || task.status === "failed" || task.status === "cancelled";
+  const canOpen = isDone || isActive;
 
   return (
     <>
-      <MenuItem icon={<FileText size={13} />} disabled={!isDone} onClick={() => onAction("openFile")}>
+      <MenuItem icon={<FileText size={13} />} disabled={!canOpen} onClick={() => onAction("openFile")}>
         Open
       </MenuItem>
-      <MenuItem icon={<ExternalLink size={13} />} disabled={!isDone} onClick={() => onAction("openWith")}>
+      <MenuItem icon={<ExternalLink size={13} />} disabled={!canOpen} onClick={() => onAction("openWith")}>
         Open with…
       </MenuItem>
-      <MenuItem icon={<FolderOpen size={13} />} disabled={!task.outputPath} onClick={() => onAction("openFolder")}>
+      <MenuItem icon={<FolderOpen size={13} />} disabled={!canOpen} onClick={() => onAction("openFolder")}>
         Open folder
       </MenuItem>
       {isMedia(task) && (
-        <MenuItem icon={<Play size={13} />} disabled={!isDone} onClick={() => onAction("play")}>
+        <MenuItem icon={<Play size={13} />} disabled={!isPlayable} onClick={() => onAction("play")}>
           Play
         </MenuItem>
       )}
 
       <Sep />
-      <MenuItem icon={<Play size={13} />} disabled={!isPaused} onClick={() => onAction("resume")}>
+      <MenuItem icon={<Play size={13} />} disabled={!isPausedOrFailed} onClick={() => onAction("resume")}>
         Resume download
       </MenuItem>
-      <MenuItem icon={<PauseIcon size={13} />} disabled={!isRunning} onClick={() => onAction("pause")}>
+      <MenuItem icon={<PauseIcon size={13} />} disabled={!isActive} onClick={() => onAction("pause")}>
         Pause download
       </MenuItem>
-      <MenuItem icon={<Square size={13} />} disabled={!canStop} onClick={() => onAction("cancel")}>
+      <MenuItem icon={<Square size={13} />} disabled={!isActive} onClick={() => onAction("cancel")}>
         Stop download
       </MenuItem>
 
-      {isArchive(task) && isDone && (
+      {isArchive(task) && (
         <>
           <Sep />
-          <MenuItem icon={<FileArchive size={13} />} onClick={() => onAction("extractHere")}>
+          <MenuItem icon={<FileArchive size={13} />} disabled={!isDone} onClick={() => onAction("extractHere")}>
             Extract here
           </MenuItem>
-          <MenuItem icon={<FolderOutput size={13} />} onClick={() => onAction("extractTo")}>
+          <MenuItem icon={<FolderOutput size={13} />} disabled={!isDone} onClick={() => onAction("extractTo")}>
             Extract to…
           </MenuItem>
-          <MenuItem icon={<FileArchiveIcon size={13} />} onClick={() => onAction("createZip")}>
-            Add to zip archive…
-          </MenuItem>
         </>
+      )}
+      {isDone && (
+        <MenuItem icon={<FileArchiveIcon size={13} />} onClick={() => onAction("createZip")}>
+          Add to zip archive…
+        </MenuItem>
       )}
 
       <Sep />

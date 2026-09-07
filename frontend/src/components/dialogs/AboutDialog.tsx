@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { Info } from "lucide-react";
+import { Info, ShieldCheck } from "lucide-react";
 import { Modal, DialogHeader, Button } from "./Modal";
 import { useUIStore } from "@/stores/ui";
 import { ipc } from "@/lib/ipc";
+
+const REPO_URL = "https://github.com/Wooinxlkz/Speusis-Downloader-react";
 
 const FEATURES = [
   "Multi-segment HTTP · BitTorrent + DHT/PEX · FTP/FTPS",
@@ -12,6 +14,12 @@ const FEATURES = [
   "RSS Auto-Download · Scheduler · Speed Graph",
   "Batch Download · Create .torrent · Site Logins",
 ];
+
+function platformName() {
+  if (navigator.platform.includes("Win")) return "Windows";
+  if (navigator.platform.includes("Mac")) return "macOS";
+  return "Linux";
+}
 
 export function AboutDialog() {
   const dialog = useUIStore((s) => s.dialog);
@@ -38,26 +46,54 @@ export function AboutDialog() {
     }
   }
 
-  return (
-    <Modal open={open} onClose={close} width={400}>
-      <DialogHeader icon={<Info size={16} />} title="About Speusis" onClose={close} />
-      <div className="flex flex-col items-center gap-1 px-5 py-6 text-center">
-        <p className="text-[22px] font-black text-accent-ink">Speusis Downloader</p>
-        <p className="text-[13px] font-semibold">
-          Version {version} — {navigator.platform.includes("Win") ? "Windows" : navigator.platform.includes("Mac") ? "macOS" : "Linux"}
-        </p>
-        <p className="text-[12px] text-muted">Multi-segment, resumable download manager.</p>
-        <p className="mt-1 text-[11.5px] font-semibold tracking-wide text-accent-ink">DEVELOPED BY NULLTRACE</p>
+  async function openRepo() {
+    const { open: openUrl } = await import("@tauri-apps/plugin-shell");
+    await openUrl(REPO_URL);
+  }
 
-        <div className="mt-3 w-full rounded-xl bg-panel px-3.5 py-3 text-left text-[11px] leading-[1.9] text-muted">
-          {FEATURES.map((line) => (
-            <p key={line}>{line}</p>
-          ))}
+  return (
+    <Modal open={open} onClose={close} width={420}>
+      <DialogHeader icon={<Info size={16} />} title="About Speusis" onClose={close} />
+      <div className="flex flex-col gap-4 px-5 py-4">
+        {/* Xuro-style top card: logo + version header, feature list as a
+            divided list rather than a paragraph block. */}
+        <div className="overflow-hidden rounded-xl border border-line-soft bg-panel">
+          <div className="flex items-center gap-3 border-b border-line-soft p-4">
+            <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-bg text-[15px] font-black text-accent-ink">
+              S
+            </div>
+            <div className="min-w-0">
+              <p className="text-[13.5px] font-semibold text-ink">Speusis Downloader</p>
+              <p className="mt-0.5 font-mono text-[11px] text-faint">
+                Version {version} — {platformName()}
+              </p>
+            </div>
+          </div>
+          <ul className="divide-y divide-line-soft">
+            {FEATURES.map((feature) => (
+              <li key={feature} className="px-4 py-2.5 text-[12px] leading-5 text-muted">
+                {feature}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {updateMsg && <p className="mt-2 text-[11.5px] text-faint">{updateMsg}</p>}
+        {/* Xuro-style "Made by" card. */}
+        <div>
+          <p className="mb-2 text-[12.5px] font-semibold">Made by</p>
+          <div className="flex items-center gap-3 rounded-xl bg-panel p-3">
+            <div className="min-w-0 flex-1 text-[12.5px] text-muted">
+              Developed by <span className="font-medium text-ink">Nulltrace</span>
+            </div>
+            <Button onClick={openRepo} className="flex flex-shrink-0 items-center gap-1.5">
+              <ShieldCheck size={13} /> View source
+            </Button>
+          </div>
+        </div>
 
-        <div className="mt-3 flex w-full gap-2">
+        {updateMsg && <p className="-mt-1 text-[11.5px] text-faint">{updateMsg}</p>}
+
+        <div className="flex gap-2">
           <Button className="flex-1 justify-center" onClick={checkForUpdates} disabled={checking}>
             {checking ? "Checking…" : "Check for Updates"}
           </Button>

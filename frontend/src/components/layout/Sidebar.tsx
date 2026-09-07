@@ -297,17 +297,20 @@ function UpdateRow() {
     check();
   }, [initListener, check]);
 
-  if (status !== "available") return null;
+  if (status !== "available" && status !== "adding") return null;
 
   return (
     <div className="flex-shrink-0 border-t border-line-soft px-2 py-1.5">
       <button
         onClick={() => download()}
-        className="flex w-full items-center gap-2 rounded-md bg-hover px-2.5 py-1.5 text-[12.5px] font-medium text-ink transition-colors duration-100 hover:bg-active"
+        disabled={status === "adding"}
+        className="flex w-full items-center gap-2 rounded-md bg-hover px-2.5 py-1.5 text-[12.5px] font-medium text-ink transition-colors duration-100 hover:bg-active disabled:opacity-60"
       >
         <ArrowDownToLine size={14} strokeWidth={2} className="flex-shrink-0" />
         <span className="truncate">Update to {release?.version}</span>
-        <span className="ml-auto flex-shrink-0 text-[11px] text-faint">Download</span>
+        <span className="ml-auto flex-shrink-0 text-[11px] text-faint">
+          {status === "adding" ? "Adding…" : "Download"}
+        </span>
       </button>
     </div>
   );

@@ -218,6 +218,10 @@ function DownloadsTab({ settings, update }: { settings: Settings; update: Update
         <FieldRow label="Max retries on failure">
           <NumberInput value={settings.maxRetries} onChange={(v) => update({ maxRetries: v })} min={0} max={20} />
         </FieldRow>
+        <p className="pt-1 text-[11px] text-faint">
+          Max concurrent applies immediately. Segments apply to new downloads only. View map uses the selected
+          download.
+        </p>
       </Group>
       <Group title="File handling">
         <FieldRow label="Route by file type" desc="Sort into Documents/Music/Video subfolders automatically">
@@ -517,14 +521,34 @@ function NumberInput({
   max?: number;
   step?: number;
 }) {
+  // Uncontrolled-ish local echo so typing doesn't fire a settings_update
+  // round-trip on every keystroke (clearing the field to retype a number
+  // used to briefly send 0, and losing focus mid-edit made the field feel
+  // like it was fighting back). Commits on blur or Enter instead.
+  const [local, setLocal] = useState(String(value));
+  useEffect(() => setLocal(String(value)), [value]);
+
+  function commit() {
+    const n = Number(local);
+    if (!Number.isNaN(n) && local.trim() !== "") {
+      const clamped = Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n));
+      onChange(clamped);
+      setLocal(String(clamped));
+    } else {
+      setLocal(String(value));
+    }
+  }
+
   return (
     <input
       type="number"
-      value={value}
+      value={local}
       min={min}
       max={max}
       step={step ?? 1}
-      onChange={(e) => onChange(Number(e.target.value))}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       className="w-[80px] rounded-lg border border-line bg-panel px-2.5 py-1.5 text-center text-[12.5px] text-ink focus:border-faint focus:outline-none"
     />
   );
