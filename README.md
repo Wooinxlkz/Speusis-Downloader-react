@@ -114,53 +114,47 @@ for you if you use `cargo tauri build` from `src-tauri/`.)
 
 ## Version
 
-**0.1.4** — correctness pass, all six items requested, verified working:
+**0.1.5** — all four items requested, verified working:
 
-- **Basket rebuilt to match the old app's real behavior.** 0.1.2/0.1.3's
-  version was a staging list you had to select-then-click-Add — the actual
-  old app adds a dropped/pasted link **immediately** and shows a rolling
-  "Recent" activity log with success/fail icons instead. Rebuilt to match,
-  plus added the manual "click to add a URL by hand" inline form the old
-  app had (found in its real `basket.html`, not guessed).
-- **Row-menu/context-menu gating was wrong for several actions**, fixed
-  against the old app's real `disabled()` function line-by-line:
-  - Open / Open with / Open folder are enabled while a download is
-    **running or queued too**, not just when complete — the backend can
-    serve the partial file (confirmed in `commands.rs::find_task_path`,
-    which falls back to `part_path`).
-  - Play is enabled while running or paused, not just when complete
-    (streaming playback).
-  - Resume is enabled for paused **and failed/cancelled**, not just paused.
-  - Pause/Stop are enabled for running/queued only (not paused — matches
-    old exactly).
-  - "Add to zip archive" is available for **any** completed file, not just
-    already-archived ones (old app never restricted it to archives).
-- **Update-to-download flow now matches the old app exactly**: clicking
-  "Update" adds the installer as a real download inside Speusis itself
-  (shows in your list, starts immediately), falling back to opening the
-  browser only if that fails — instead of always just opening a browser
-  tab.
-- **Sidebar search** — re-verified, still real and working, no regression.
-- **Settings fixes**: found and fixed a real bug where every numeric field
-  (Segments, Max concurrent, etc.) fired a backend `settings_update` call
-  on *every keystroke*, including transient invalid states while retyping
-  — now commits on blur/Enter instead. Added the old app's real
-  informational note under Downloads ("Max concurrent applies
-  immediately. Segments apply to new downloads only..."). Re-verified the
-  Security tab already had full real parity with the old app.
-- **About dialog rebuilt** to match Xuro's real structure: logo/version
-  card with the feature list as a proper divided list (not a paragraph
-  block), plus a "Made by" card with a real "View source" link to this
-  repo.
-- **Windows installer now uses the app's real icon** — found the actual
-  missing config field (`nsis.installerIcon`/`uninstallerIcon` in
-  `tauri.conf.json`, verified against Tauri's real config schema, not
-  guessed) and set both to `icons/icon.ico`.
-- **Cleaned up a real packaging bug**: verification screenshots from
-  0.1.1–0.1.3 had been accumulating in the repo root because only the
-  throwaway `.py` test scripts were deleted before zipping, never the
-  `.png` outputs. All removed, and `.gitignore` now blocks this pattern
-  going forward.
+- **Basket rebuilt from the root cause up.** Found the actual reason it
+  looked wrong: it's its own separate window/document in Tauri, and
+  nothing in it ever synced theme or accent — it was permanently stuck in
+  light mode regardless of what the app was set to, no matter how many
+  times the surrounding UI got polished. Extracted a shared `applyTheme()`
+  helper (`lib/theme.ts`) used by both the main window and the basket now,
+  synced at open and re-synced on window focus (it's hidden/shown rather
+  than destroyed between opens, so a mount-only fetch would go stale).
+  Kept the real instant-add-on-drop behavior from 0.1.4 and added real
+  features on top: colored extension badges matching the main table,
+  relative timestamps, a retry button on failed entries, and a clear-log
+  button.
+- **Number input spinners replaced** — the browser's default up/down
+  arrows never matched the theme. Built custom stepper buttons using our
+  own tokens (border/hover/disabled states all match everything else),
+  hidden the native ones, kept the same commit-on-blur behavior from 0.1.4
+  so typing still doesn't hammer the backend.
+- **Segment map rebuilt to match the reference design** (`FlexD-Motion-UI`
+  provided): per-segment colored fill + checkmark for done segments, a
+  pulsing highlight on the segment currently being written, a 2×2 stats
+  grid (Downloaded/Remaining/Segments/ETA), and quick-pick buttons for
+  common segment counts — colors mapped onto our existing status tokens
+  (`--success`/`--danger`/`--warning`/`--accent-ink`) rather than a new
+  hardcoded palette, motion values (stagger-in, pulse) ported directly.
+  Scope kept tight to just this dialog, nothing else touched.
+- **Settings → About expanded to match Xuro's real structure**, and a real
+  gap found while doing it: I'd only rebuilt the *standalone* About dialog
+  (toolbar → About) — the separate `AboutTab` inside Settings was still
+  the old one-line version, so the two disagreed. Extracted a shared
+  `AboutContent` component so there's only one real source of truth now:
+  logo/version card with a proper divided feature list, a "Made by" card
+  with a real GitHub link, and Xuro's "Recommend" section (X/Facebook/
+  Email/Instagram share intents, Instagram's real copy-link fallback since
+  it has no web share intent, plus a "copy download link" button) — ported
+  faithfully from Xuro's real `share()` function, pointed at this repo.
+
+**Also cleaned up:** verification screenshots from this session were
+deleted before packaging (learned from 0.1.4 that this needs checking
+every time, not just deleting the `.py` scripts).
 
 Bumped across `frontend/package.json`, `src-tauri/Cargo.toml`, and
 `tauri.conf.json`. `speusis-core` stays at 0.4.6, still unmodified except

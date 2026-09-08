@@ -14,12 +14,14 @@ import {
   Keyboard,
   Globe,
   ChevronDown,
+  ChevronUp,
   Grid3x3,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui";
 import { useSettingsStore } from "@/stores/settings";
 import { useDownloadsStore } from "@/stores/downloads";
 import { FieldRow, Switch, TextInput, Button } from "./Modal";
+import { AboutContent } from "./AboutContent";
 import { MorphMenu } from "@/components/ui/MorphMenu";
 import { ipc } from "@/lib/ipc";
 import { LANGUAGES, useI18nStore, useT } from "@/lib/i18n";
@@ -484,15 +486,7 @@ function ShortcutsTab() {
 }
 
 function AboutTab() {
-  const [version, setVersion] = useState("…");
-  useEffect(() => {
-    ipc.appGetVersion().then(setVersion).catch(() => setVersion("unknown"));
-  }, []);
-  return (
-    <Group title="Speusis Downloader" desc="Native desktop download manager — HTTP, FTP, and BitTorrent in one app.">
-      <p className="py-1.5 font-mono text-[11px] text-faint">Version {version}</p>
-    </Group>
-  );
+  return <AboutContent />;
 }
 
 function ViewMapButton() {
@@ -527,10 +521,11 @@ function NumberInput({
   // like it was fighting back). Commits on blur or Enter instead.
   const [local, setLocal] = useState(String(value));
   useEffect(() => setLocal(String(value)), [value]);
+  const s = step ?? 1;
 
-  function commit() {
-    const n = Number(local);
-    if (!Number.isNaN(n) && local.trim() !== "") {
+  function commit(next?: number) {
+    const n = next ?? Number(local);
+    if (!Number.isNaN(n) && (next !== undefined || local.trim() !== "")) {
       const clamped = Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n));
       onChange(clamped);
       setLocal(String(clamped));
@@ -539,18 +534,46 @@ function NumberInput({
     }
   }
 
+  function nudge(dir: 1 | -1) {
+    const raw = (Number(local) || value) + dir * s;
+    // Round away floating-point noise from fractional steps (e.g. seed
+    // ratio's step=0.1) without truncating an intentional decimal value.
+    const rounded = Math.round(raw * 100) / 100;
+    commit(rounded);
+  }
+
   return (
-    <input
-      type="number"
-      value={local}
-      min={min}
-      max={max}
-      step={step ?? 1}
-      onChange={(e) => setLocal(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-      className="w-[80px] rounded-lg border border-line bg-panel px-2.5 py-1.5 text-center text-[12.5px] text-ink focus:border-faint focus:outline-none"
-    />
+    <div className="flex h-[30px] w-[80px] items-stretch overflow-hidden rounded-lg border border-line bg-panel focus-within:border-faint">
+      <input
+        type="text"
+        inputMode="decimal"
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => commit()}
+        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        className="w-0 flex-1 bg-transparent px-2 text-center text-[12.5px] text-ink focus:outline-none"
+      />
+      <div className="flex flex-shrink-0 flex-col border-l border-line">
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => nudge(1)}
+          disabled={max !== undefined && value >= max}
+          className="flex flex-1 items-center justify-center px-1.5 text-faint transition-colors hover:bg-hover hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"
+        >
+          <ChevronUp size={10} strokeWidth={2.5} />
+        </button>
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => nudge(-1)}
+          disabled={min !== undefined && value <= min}
+          className="flex flex-1 items-center justify-center border-t border-line px-1.5 text-faint transition-colors hover:bg-hover hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"
+        >
+          <ChevronDown size={10} strokeWidth={2.5} />
+        </button>
+      </div>
+    </div>
   );
 }
 

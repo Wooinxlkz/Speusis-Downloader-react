@@ -1,25 +1,12 @@
 import { create } from "zustand";
 import { ipc } from "@/lib/ipc";
+import { applyTheme } from "@/lib/theme";
 import type { AppSettings } from "@/lib/types";
 
 interface SettingsState {
   settings: AppSettings | null;
   load: () => Promise<void>;
   update: (patch: Partial<AppSettings>) => Promise<void>;
-}
-
-function applyTheme(settings: AppSettings) {
-  const root = document.documentElement;
-  const wantsDark =
-    settings.themeMode === "dark" ||
-    (settings.themeMode === "system" &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches);
-  root.classList.toggle("dark", wantsDark);
-  if (settings.accentColor === "slate") {
-    root.removeAttribute("data-accent");
-  } else {
-    root.setAttribute("data-accent", settings.accentColor);
-  }
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
