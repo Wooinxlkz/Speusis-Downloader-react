@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { SearchCode } from "lucide-react";
 import { Modal, DialogHeader, TextInput, Button } from "./Modal";
 import { useUIStore } from "@/stores/ui";
@@ -17,6 +17,7 @@ export function GrabberDialog() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
 
   async function scan() {
     if (!pageUrl.trim()) return;
@@ -38,10 +39,32 @@ export function GrabberDialog() {
     }
   }
 
+  // Filter by extension or keyword, matching the old app's real
+  // grabberFilter field - matches against the link's URL, its display
+  // text, or its kind (e.g. typing "mp4" or "video" both work).
+  const filtered = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return links;
+    return links.filter(
+      (l) => l.url.toLowerCase().includes(q) || (l.text ?? "").toLowerCase().includes(q) || l.kind.toLowerCase().includes(q),
+    );
+  }, [links, filter]);
+
   function toggle(url: string) {
     setSelected((prev) => {
       const next = new Set(prev);
       next.has(url) ? next.delete(url) : next.add(url);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelected(new Set(filtered.map((l) => l.url)));
+  }
+  function selectNone() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      filtered.forEach((l) => next.delete(l.url));
       return next;
     });
   }
@@ -54,6 +77,7 @@ export function GrabberDialog() {
     close();
     setLinks([]);
     setPageUrl("");
+    setFilter("");
   }
 
   return (
@@ -75,21 +99,35 @@ export function GrabberDialog() {
         {error && <p className="text-[11.5px] text-danger">{error}</p>}
 
         {links.length > 0 && (
-          <div className="max-h-64 overflow-y-auto rounded-lg border border-line-soft">
-            {links.map((l) => (
-              <label
-                key={l.url}
-                className="flex cursor-pointer items-center gap-2.5 border-b border-line-soft px-3 py-2 last:border-b-0 hover:bg-hover"
-              >
-                <input type="checkbox" checked={selected.has(l.url)} onChange={() => toggle(l.url)} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12.5px] font-medium">{l.text || l.url}</p>
-                  <p className="truncate font-mono text-[10.5px] text-faint">{l.url}</p>
-                </div>
-                <span className="flex-shrink-0 rounded bg-sunken px-1.5 py-0.5 text-[10px] uppercase text-faint">{l.kind}</span>
-              </label>
-            ))}
-          </div>
+          <>
+            <div className="flex items-center gap-2">
+              <TextInput
+                placeholder="Filter by extension (e.g. mp4) or keyword"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="flex-1"
+              />
+              <Button onClick={selectAll}>All</Button>
+              <Button onClick={selectNone}>None</Button>
+            </div>
+
+            <div className="max-h-64 overflow-y-auto rounded-lg border border-line-soft">
+              {filtered.length === 0 && <p className="px-3 py-4 text-center text-[12px] text-faint">No links match that filter.</p>}
+              {filtered.map((l) => (
+                <label
+                  key={l.url}
+                  className="flex cursor-pointer items-center gap-2.5 border-b border-line-soft px-3 py-2 last:border-b-0 hover:bg-hover"
+                >
+                  <input type="checkbox" checked={selected.has(l.url)} onChange={() => toggle(l.url)} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[12.5px] font-medium">{l.text || l.url}</p>
+                    <p className="truncate font-mono text-[10.5px] text-faint">{l.url}</p>
+                  </div>
+                  <span className="flex-shrink-0 rounded bg-sunken px-1.5 py-0.5 text-[10px] uppercase text-faint">{l.kind}</span>
+                </label>
+              ))}
+            </div>
+          </>
         )}
 
         <div className="flex items-center justify-between">

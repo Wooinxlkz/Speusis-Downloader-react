@@ -14,6 +14,7 @@ import { DeleteConfirmDialog } from "@/components/dialogs/DeleteConfirmDialog";
 import { PropertiesDialog } from "@/components/dialogs/PropertiesDialog";
 import { RenameDialog } from "@/components/dialogs/RenameDialog";
 import { SegmentMapDialog } from "@/components/dialogs/SegmentMapDialog";
+import { BasketDialog } from "@/components/dialogs/BasketDialog";
 
 export function DialogsRoot() {
   return (
@@ -34,6 +35,7 @@ export function DialogsRoot() {
       <PropertiesDialog />
       <RenameDialog />
       <SegmentMapDialog />
+      <BasketDialog />
     </>
   );
 }

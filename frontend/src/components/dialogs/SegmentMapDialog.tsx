@@ -27,7 +27,11 @@ export function SegmentMapDialog() {
   const tasks = useDownloadsStore((s) => s.tasks);
   const live = useDownloadsStore((s) => s.live);
   const open = dialog === "segmentMap";
-  const task = tasks.find((t) => t.id === taskId);
+  // Matches the reference design: fall back to whatever's currently
+  // running if nothing was explicitly selected, instead of always
+  // requiring an explicit click first.
+  const task = tasks.find((t) => t.id === taskId) ?? (!taskId ? tasks.find((t) => t.status === "running") : undefined);
+  const effectiveTaskId = task?.id ?? taskId;
 
   const [segments, setSegments] = useState<SegmentMapEntry[]>([]);
   const [state, setState] = useState<LoadState>("no-selection");
@@ -39,7 +43,7 @@ export function SegmentMapDialog() {
 
   useEffect(() => {
     if (!open) return;
-    if (!taskId) {
+    if (!effectiveTaskId) {
       setState("no-selection");
       return;
     }
@@ -47,7 +51,7 @@ export function SegmentMapDialog() {
     setState("loading");
     async function poll() {
       try {
-        const res = await ipc.downloadSegmentMap(taskId!);
+        const res = await ipc.downloadSegmentMap(effectiveTaskId!);
         if (stop) return;
         if (!res || res.segments.length === 0) {
           setState("not-segmented");
@@ -69,15 +73,15 @@ export function SegmentMapDialog() {
       stop = true;
       clearInterval(id);
     };
-  }, [open, taskId]);
+  }, [open, effectiveTaskId]);
 
   const totalBytes = segments.reduce((sum, s) => sum + (s.end - s.start), 0);
   const receivedBytes = segments.reduce((sum, s) => sum + s.received, 0);
   const doneCount = segments.filter((s) => s.done).length;
   const firstPendingIndex = segments.findIndex((s) => !s.done);
   const remaining = task?.size != null ? Math.max(0, task.size - task.receivedBytes) : totalBytes - receivedBytes;
-  const speed = taskId ? live[taskId]?.speed : undefined;
-  const eta = taskId ? live[taskId]?.eta : undefined;
+  const speed = effectiveTaskId ? live[effectiveTaskId]?.speed : undefined;
+  const eta = effectiveTaskId ? live[effectiveTaskId]?.eta : undefined;
   const color = statusColorVar(task?.status);
   const cols = 8;
 
@@ -87,7 +91,7 @@ export function SegmentMapDialog() {
   }
 
   return (
-    <Modal open={open} onClose={close} width={380}>
+    <Modal open={open} onClose={close} width={340}>
       <DialogHeader
         icon={<Grid3x3 size={16} />}
         title={

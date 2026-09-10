@@ -4,6 +4,7 @@ import { PanelLeft } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Toolbar } from "@/components/layout/Toolbar";
 import { StatusStrip } from "@/components/layout/StatusStrip";
+import { ClipboardBanner } from "@/components/layout/ClipboardBanner";
 import { DownloadsTable } from "@/components/downloads/DownloadsTable";
 import { useCategoryStore } from "@/stores/category";
 import { useUIStore } from "@/stores/ui";
@@ -61,7 +62,7 @@ export function MainShell() {
         useUIStore.getState().open("batch");
       } else if (key === "e") {
         e.preventDefault();
-        ipc.basketOpen().catch(() => {});
+        useUIStore.getState().open("basket");
       } else if (e.shiftKey && key === "f") {
         e.preventDefault();
         ipc.settingsChooseDownloadDir().catch(() => {});
@@ -99,6 +100,7 @@ export function MainShell() {
           <span>{TITLES[category] ?? "All Downloads"}</span>
         </div>
         <Toolbar />
+        <ClipboardBanner />
         <StatusStrip />
         <DownloadsTable />
       </main>

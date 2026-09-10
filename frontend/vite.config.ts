@@ -18,12 +18,6 @@ export default defineConfig(async () => ({
   build: {
     outDir: "../dist/renderer",
     emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, "index.html"),
-        basket: path.resolve(__dirname, "basket.html"),
-      },
-    },
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },

@@ -181,6 +181,22 @@
   animation: modal-in-keyframes 0.3s var(--ease-out) both;
 }
 
+/* Clipboard banner slide-in - matches the old app's real bannerSlideIn
+   keyframe (fade + slight upward translate). */
+@keyframes clipboard-banner-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.clipboard-banner-in {
+  animation: clipboard-banner-slide-in 0.2s var(--ease-out) both;
+}
+
 /* Row progress bar shimmer sweep — the accent-colored fill itself is a
    plain width transition; this overlay adds the motion the user asked for
    without re-rendering the fill every tick. */

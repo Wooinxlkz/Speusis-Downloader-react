@@ -18,6 +18,7 @@ export type DialogName =
   | "deleteConfirm"
   | "segmentMap"
   | "tracer"
+  | "basket"
   | null;
 
 interface UIState {

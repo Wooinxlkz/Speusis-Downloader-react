@@ -117,7 +117,7 @@ export function Sidebar() {
         <NavItem icon={<Layers size={15} />} label={t("torrent", "Torrent")} hint="⌘T" onClick={() => open("openTorrent")} />
         <NavItem icon={<SearchCode size={15} />} label={t("grabber", "Grabber")} hint="⌘G" onClick={() => open("grabber")} />
         <NavItem icon={<ClipboardList size={15} />} label={t("batch", "Batch")} hint="⌘B" onClick={() => open("batch")} />
-        <NavItem icon={<ShoppingBasket size={15} />} label={t("basket", "Basket")} hint="⌘E" onClick={() => ipc.basketOpen().catch(() => {})} />
+        <NavItem icon={<ShoppingBasket size={15} />} label={t("basket", "Basket")} hint="⌘E" onClick={() => open("basket")} />
       </nav>
 
       {/* Only this zone scrolls — quick actions above and the settings
