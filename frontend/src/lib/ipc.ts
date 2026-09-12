@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AppSettings,
+  DebugLogs,
   DownloadInput,
   DownloadTask,
   GrabberResult,
@@ -94,6 +95,11 @@ export const ipc = {
   licenseActivate: (name: string, email: string, key: string) =>
     call<LicenseRecord>("license_activate", { name, email, key }),
   licenseGetStatus: () => call<LicenseRecord | null>("license_get_status"),
+
+  // ---- debug (Settings > Debug) ----
+  debugReadLogs: () => call<DebugLogs>("debug_read_logs"),
+  debugClearLogs: () => call<void>("debug_clear_logs"),
+  debugOpenLogFolder: () => call<void>("debug_open_log_folder"),
 };
 
 export class IpcError extends Error {}

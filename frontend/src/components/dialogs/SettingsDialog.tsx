@@ -16,6 +16,10 @@ import {
   ChevronDown,
   ChevronUp,
   Grid3x3,
+  Bug,
+  Copy,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui";
 import { useSettingsStore } from "@/stores/settings";
@@ -25,7 +29,7 @@ import { AboutContent } from "./AboutContent";
 import { MorphMenu } from "@/components/ui/MorphMenu";
 import { ipc } from "@/lib/ipc";
 import { LANGUAGES, useI18nStore, useT } from "@/lib/i18n";
-import type { AccentColor, ThemeMode } from "@/lib/types";
+import type { AccentColor, BackgroundStyle, ThemeMode } from "@/lib/types";
 
 function getTabs(t: (key: string, fallback: string) => string): { id: string; label: string; icon: React.ReactNode; desc: string }[] {
   return [
@@ -37,6 +41,7 @@ function getTabs(t: (key: string, fallback: string) => string): { id: string; la
     { id: "advanced", label: t("advanced", "Advanced"), icon: <SlidersHorizontal size={14} />, desc: "Torrent seeding and engine internals" },
     { id: "appearance", label: t("appearance", "Appearance"), icon: <Palette size={14} />, desc: "Theme, accent color, and language" },
     { id: "shortcuts", label: "Shortcuts", icon: <Keyboard size={14} />, desc: "Keyboard shortcuts reference" },
+    { id: "debug", label: "Debug", icon: <Bug size={14} />, desc: "Logs, crash reports, and diagnostics" },
     { id: "about", label: t("about", "About"), icon: <Info size={14} />, desc: "Version and app info" },
   ];
 }
@@ -148,6 +153,8 @@ export function SettingsDialog() {
                   <AppearanceTab settings={settings} update={update} />
                 ) : tab.id === "shortcuts" ? (
                   <ShortcutsTab />
+                ) : tab.id === "debug" ? (
+                  <DebugTab />
                 ) : (
                   <AboutTab />
                 )}
@@ -367,6 +374,15 @@ const ACCENTS: { id: AccentColor; hex: string }[] = [
   { id: "teal", hex: "#2b7a78" },
 ];
 
+const BACKGROUNDS: { id: BackgroundStyle; label: string; hex: string }[] = [
+  { id: "default", label: "Default", hex: "#fbfbfa" },
+  { id: "arctic-frost", label: "Arctic Frost", hex: "#f2f6fa" },
+  { id: "slate-fjord", label: "Slate Fjord", hex: "#eef1f4" },
+  { id: "storm-glass", label: "Storm Glass", hex: "#eef0f5" },
+  { id: "glacier-teal", label: "Glacier Teal", hex: "#eef6f5" },
+  { id: "twilight-indigo", label: "Twilight Indigo", hex: "#f0eef8" },
+];
+
 function AppearanceTab({ settings, update }: { settings: Settings; update: Update }) {
   const themes: { id: ThemeMode; label: string; desc: string }[] = [
     { id: "system", label: "System", desc: "Match your OS" },
@@ -402,6 +418,22 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Updat
               }`}
             >
               <span className="h-5 w-5 rounded-full" style={{ background: a.hex }} />
+            </button>
+          ))}
+        </div>
+      </Group>
+      <Group title="Background" desc="Retints the canvas, panels, and sunken surfaces">
+        <div className="grid grid-cols-3 gap-2 py-1.5">
+          {BACKGROUNDS.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => update({ backgroundStyle: b.id })}
+              className={`flex flex-col items-start gap-1.5 rounded-xl border-2 p-2.5 text-left transition-colors ${
+                settings.backgroundStyle === b.id ? "border-ink" : "border-transparent hover:border-line"
+              }`}
+            >
+              <span className="h-6 w-full rounded-md border border-line" style={{ background: b.hex }} />
+              <span className="text-[10.5px] font-medium text-muted">{b.label}</span>
             </button>
           ))}
         </div>
@@ -487,6 +519,105 @@ function ShortcutsTab() {
 
 function AboutTab() {
   return <AboutContent />;
+}
+
+function DebugTab() {
+  const [logs, setLogs] = useState<{ debug: string; crash: string } | null>(null);
+  const [view, setView] = useState<"crash" | "debug">("crash");
+  const [busy, setBusy] = useState<"refresh" | "clear" | "folder" | null>(null);
+
+  async function refresh() {
+    setBusy("refresh");
+    try {
+      setLogs(await ipc.debugReadLogs());
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  async function clear() {
+    setBusy("clear");
+    try {
+      await ipc.debugClearLogs();
+      await refresh();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function openFolder() {
+    setBusy("folder");
+    try {
+      await ipc.debugOpenLogFolder();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const text = logs ? (view === "crash" ? logs.crash : logs.debug) : "";
+
+  return (
+    <Group
+      title="Diagnostics"
+      desc="Local only - nothing here is sent anywhere. debug.log is a verbose trace of what the app is doing; crash.log is panics only."
+    >
+      <div className="flex items-center justify-between gap-2 py-1.5">
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => setView("crash")}
+            className={`rounded-lg px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
+              view === "crash" ? "bg-invert text-invert-ink" : "bg-panel text-muted hover:text-ink"
+            }`}
+          >
+            Crash log{logs && logs.crash ? "" : " (empty)"}
+          </button>
+          <button
+            onClick={() => setView("debug")}
+            className={`rounded-lg px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
+              view === "debug" ? "bg-invert text-invert-ink" : "bg-panel text-muted hover:text-ink"
+            }`}
+          >
+            Debug log{logs && logs.debug ? "" : " (empty)"}
+          </button>
+        </div>
+        <div className="flex gap-1.5">
+          <Button onClick={() => void refresh()} disabled={busy !== null}>
+            <RefreshCw size={12.5} className={busy === "refresh" ? "animate-spin" : ""} />
+          </Button>
+          <Button onClick={() => void openFolder()} disabled={busy !== null}>
+            <FolderOpen size={12.5} />
+            Open folder
+          </Button>
+          <Button
+            onClick={() => {
+              if (text) void navigator.clipboard.writeText(text);
+            }}
+            disabled={busy !== null || !text}
+          >
+            <Copy size={12.5} />
+            Copy
+          </Button>
+          <Button danger onClick={() => void clear()} disabled={busy !== null}>
+            <Trash2 size={12.5} />
+            Clear
+          </Button>
+        </div>
+      </div>
+      <div className="max-h-80 overflow-y-auto rounded-lg border border-line bg-panel p-2.5">
+        {logs === null ? (
+          <p className="text-[11.5px] text-faint">Loading…</p>
+        ) : text ? (
+          <pre className="whitespace-pre-wrap break-all font-mono text-[10.5px] leading-relaxed text-muted">{text}</pre>
+        ) : (
+          <p className="text-[11.5px] text-faint">Nothing here yet.</p>
+        )}
+      </div>
+    </Group>
+  );
 }
 
 function ViewMapButton() {

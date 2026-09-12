@@ -20,7 +20,9 @@ export function useEventBus() {
 
     listen<AppEvent>("event-bus", (evt) => {
       const payload = evt.payload;
-      switch (payload.type) {
+      // NOTE: the backend tags this union on "event", not "type" - see the
+      // comment on AppEvent in lib/types.ts for why that distinction matters.
+      switch (payload.event) {
         case "DownloadProgress":
           applyProgress(payload.data as any);
           break;
@@ -30,7 +32,9 @@ export function useEventBus() {
         case "DownloadPaused":
         case "DownloadResumed":
         case "TorrentFilesReady":
-          applyStatus(payload.type, payload.data as any);
+        case "SecurityScanStarted":
+        case "SecurityScanCompleted":
+          applyStatus(payload.event, payload.data as any);
           break;
         default:
           // RssFeedFetched / TorrentPeerAdded / scheduler events etc. -

@@ -997,3 +997,39 @@ pub async fn license_get_status(app: AppHandle) -> Result<Option<speusis_core::l
     let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
     Ok(speusis_core::license::get_status(&dir))
 }
+
+// ---------- Debug settings ----------
+// Frontend surface for the debug.log / crash.log files that speusis-core's
+// debug_log module already writes to %LOCALAPPDATA%\Speusis Downloader\ -
+// this doesn't change what gets logged, just makes it reachable from
+// Settings > Debug instead of requiring someone to go dig the files out
+// by hand.
+
+#[derive(serde::Serialize)]
+pub struct DebugLogs {
+    /// Verbose operational trace, tail-truncated - see debug_log.rs.
+    pub debug: String,
+    /// Rust panics only, written by main.rs's panic hook.
+    pub crash: String,
+}
+
+#[tauri::command]
+pub fn debug_read_logs() -> DebugLogs {
+    DebugLogs {
+        debug: speusis_core::debug_log::read_debug_log(4000),
+        crash: speusis_core::debug_log::read_crash_log(4000),
+    }
+}
+
+#[tauri::command]
+pub fn debug_clear_logs() {
+    speusis_core::debug_log::clear_logs();
+}
+
+#[tauri::command]
+pub fn debug_open_log_folder() -> Result<(), String> {
+    match speusis_core::debug_log::log_dir() {
+        Some(dir) => open::that(dir).map_err(|e| e.to_string()),
+        None => Err("Log folder isn't available yet - try again after using the app a bit.".to_string()),
+    }
+}

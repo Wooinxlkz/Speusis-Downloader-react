@@ -18,6 +18,16 @@ interface DownloadsState {
   select: (id: string | null) => void;
 }
 
+// Status-changing events (started/completed/scan-finished/etc.) can arrive
+// back-to-back for the same task, and each one kicks off its own
+// ipc.downloadList() round-trip. Those round-trips aren't guaranteed to
+// resolve in the order they were sent - on a fast IPC bridge under load
+// (a burst of events on a big torrent, several downloads finishing near
+// simultaneously) an older response can land after a newer one and stomp
+// fresh state with stale data. A simple monotonic counter fixes that: only
+// the response from the most recently *started* request is allowed to win.
+let refreshSeq = 0;
+
 export const useDownloadsStore = create<DownloadsState>((set, get) => ({
   tasks: [],
   loaded: false,
@@ -25,7 +35,9 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
   live: {},
 
   refresh: async () => {
+    const seq = ++refreshSeq;
     const tasks = await ipc.downloadList();
+    if (seq !== refreshSeq) return; // a newer refresh already landed
     set({ tasks, loaded: true });
   },
 
@@ -50,7 +62,11 @@ export const useDownloadsStore = create<DownloadsState>((set, get) => ({
   // simplest correct thing is to pull that one task fresh rather than
   // hand-patch every field the backend might have changed.
   applyStatus: (_kind, data) => {
-    ipc.downloadList().then((tasks) => set({ tasks }));
+    const seq = ++refreshSeq;
+    ipc.downloadList().then((tasks) => {
+      if (seq !== refreshSeq) return; // a newer refresh already landed
+      set({ tasks, loaded: true });
+    });
     void data;
   },
 

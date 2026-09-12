@@ -7,7 +7,7 @@ import type { AppSettings } from "@/lib/types";
  * fetching settings - there's no automatic propagation between windows.
  * Shared here so the logic can't drift between them.
  */
-export function applyTheme(settings: Pick<AppSettings, "themeMode" | "accentColor">) {
+export function applyTheme(settings: Pick<AppSettings, "themeMode" | "accentColor" | "backgroundStyle">) {
   const root = document.documentElement;
   const wantsDark =
     settings.themeMode === "dark" ||
@@ -17,5 +17,10 @@ export function applyTheme(settings: Pick<AppSettings, "themeMode" | "accentColo
     root.removeAttribute("data-accent");
   } else {
     root.setAttribute("data-accent", settings.accentColor);
+  }
+  if (settings.backgroundStyle === "default") {
+    root.removeAttribute("data-bg");
+  } else {
+    root.setAttribute("data-bg", settings.backgroundStyle);
   }
 }

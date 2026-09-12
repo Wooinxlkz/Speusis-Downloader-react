@@ -152,6 +152,82 @@
   --accent-ink: var(--accent);
 }
 
+/* Background/paper presets - selected in Settings -> Appearance, persisted
+   via settings_update({ backgroundStyle }) and applied as data-bg on
+   <html>, same mechanism as data-accent above. "default" (no attribute)
+   is the existing palette. All five named presets lean cool
+   (blue/teal/violet-grey). */
+:root[data-bg="arctic-frost"] {
+  --bg: #f2f6fa;
+  --panel: #e8eef5;
+  --sunken: #d7e2ee;
+  --line: #d2deec;
+  --line-soft: #e0e9f2;
+}
+.dark[data-bg="arctic-frost"] {
+  --bg: #12161c;
+  --panel: #0d1015;
+  --sunken: #090b0f;
+  --line: #1c222c;
+  --line-soft: #161a21;
+}
+:root[data-bg="slate-fjord"] {
+  --bg: #eef1f4;
+  --panel: #e2e7ec;
+  --sunken: #ced7df;
+  --line: #c9d3dc;
+  --line-soft: #dae0e6;
+}
+.dark[data-bg="slate-fjord"] {
+  --bg: #14171b;
+  --panel: #101215;
+  --sunken: #0a0c0e;
+  --line: #232830;
+  --line-soft: #1b1f24;
+}
+:root[data-bg="storm-glass"] {
+  --bg: #eef0f5;
+  --panel: #e3e5ee;
+  --sunken: #d1d4e2;
+  --line: #cbcfdf;
+  --line-soft: #dcdfe9;
+}
+.dark[data-bg="storm-glass"] {
+  --bg: #16161d;
+  --panel: #111117;
+  --sunken: #0b0b10;
+  --line: #262633;
+  --line-soft: #1e1e27;
+}
+:root[data-bg="glacier-teal"] {
+  --bg: #eef6f5;
+  --panel: #e1eeec;
+  --sunken: #cde3e0;
+  --line: #c7ddd9;
+  --line-soft: #d9ece9;
+}
+.dark[data-bg="glacier-teal"] {
+  --bg: #0f1917;
+  --panel: #0b1312;
+  --sunken: #070d0c;
+  --line: #1c2f2b;
+  --line-soft: #162622;
+}
+:root[data-bg="twilight-indigo"] {
+  --bg: #f0eef8;
+  --panel: #e4e0f2;
+  --sunken: #d0c9e8;
+  --line: #cac2e3;
+  --line-soft: #ddd7ee;
+}
+.dark[data-bg="twilight-indigo"] {
+  --bg: #16131f;
+  --panel: #100d18;
+  --sunken: #0a0810;
+  --line: #2a2440;
+  --line-soft: #201b33;
+}
+
 ::-webkit-scrollbar {
   width: 9px;
   height: 9px;

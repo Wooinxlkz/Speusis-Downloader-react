@@ -68,6 +68,13 @@ export interface DownloadInput {
 
 export type ThemeMode = "system" | "light" | "dark";
 export type AccentColor = "slate" | "blue" | "green" | "purple" | "orange" | "red" | "teal";
+export type BackgroundStyle =
+  | "default"
+  | "arctic-frost"
+  | "slate-fjord"
+  | "storm-glass"
+  | "glacier-teal"
+  | "twilight-indigo";
 
 export interface SiteCredential {
   domain: string;
@@ -86,6 +93,7 @@ export interface AppSettings {
   seedRatio: number;
   themeMode: ThemeMode;
   accentColor: AccentColor;
+  backgroundStyle: BackgroundStyle;
   scheduleEnabled: boolean;
   scheduleStartHour: number;
   scheduleStartMinute: number;
@@ -177,20 +185,42 @@ export interface DownloadResumed { id: string }
 export interface TorrentPeerAdded { torrentId: string; peerId: string; ip: string; port: number; peerCount: number | null }
 export interface TorrentFilesReady { torrentId: string; files: { name: string; length: number; index: number }[] }
 export interface RssFeedFetched { feedId: string; newItems: number }
+export interface SecurityScanStarted { id: string; path: string; scanner: string }
+export interface SecurityScanCompleted {
+  id: string;
+  path: string;
+  scanner: string;
+  status: SecurityScanInfo["status"];
+  message: string;
+  output: string | null;
+}
 
+// Mirrors speusis-core/src/types.rs's `#[serde(tag = "event", content = "data")]`
+// on the AppEvent enum: the wire shape is `{ event: "...", data: {...} }`, NOT
+// `{ type: "...", data: {...} }`. This previously said `type` here (and in
+// useEventBus.ts's switch), which meant every single event - including
+// DownloadProgress - silently missed every case below and fell through to
+// the catch-all full-list refresh. That's the root cause of the choppy
+// progress bar, the missing live scan status, and torrents/large downloads
+// appearing to break: DownloadProgress fires every ~400ms per active
+// download, and each tick was re-fetching and replacing the *entire* task
+// list over IPC instead of patching one field, which piles up badly the
+// longer/larger a download runs. Keep this field named `event`.
 export type AppEvent =
-  | { type: "DownloadStarted"; data: DownloadStarted }
-  | { type: "DownloadProgress"; data: DownloadProgress }
-  | { type: "DownloadCompleted"; data: DownloadCompleted }
-  | { type: "DownloadFailed"; data: DownloadFailed }
-  | { type: "DownloadPaused"; data: DownloadPaused }
-  | { type: "DownloadResumed"; data: DownloadResumed }
-  | { type: "TorrentPeerAdded"; data: TorrentPeerAdded }
-  | { type: "TorrentFilesReady"; data: TorrentFilesReady }
-  | { type: "RssFeedFetched"; data: RssFeedFetched }
-  | { type: "SchedulerStarted" }
-  | { type: "SchedulerStopped" }
-  | { type: string; data?: unknown };
+  | { event: "DownloadStarted"; data: DownloadStarted }
+  | { event: "DownloadProgress"; data: DownloadProgress }
+  | { event: "DownloadCompleted"; data: DownloadCompleted }
+  | { event: "DownloadFailed"; data: DownloadFailed }
+  | { event: "DownloadPaused"; data: DownloadPaused }
+  | { event: "DownloadResumed"; data: DownloadResumed }
+  | { event: "SecurityScanStarted"; data: SecurityScanStarted }
+  | { event: "SecurityScanCompleted"; data: SecurityScanCompleted }
+  | { event: "TorrentPeerAdded"; data: TorrentPeerAdded }
+  | { event: "TorrentFilesReady"; data: TorrentFilesReady }
+  | { event: "RssFeedFetched"; data: RssFeedFetched }
+  | { event: "SchedulerStarted" }
+  | { event: "SchedulerStopped" }
+  | { event: string; data?: unknown };
 
 export type LicensePlan = "trial" | "monthly" | "lifetime";
 
@@ -201,4 +231,9 @@ export interface LicenseRecord {
   plan: LicensePlan;
   deviceLocked: boolean;
   activatedAt: number;
+}
+
+export interface DebugLogs {
+  debug: string;
+  crash: string;
 }

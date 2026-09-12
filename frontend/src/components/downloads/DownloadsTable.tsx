@@ -270,7 +270,13 @@ function Row({
         {task.status === "running" && (
           <div className="relative h-1 w-full max-w-[120px] overflow-hidden rounded-full bg-sunken">
             <div
-              className="h-full rounded-full bg-accent-ink opacity-60 transition-all duration-500"
+              // Backend ticks DownloadProgress every ~400ms (torrent_downloader.rs
+              // / http_direct_downloader.rs); a 500ms eased transition ran longer
+              // than the gap between updates, so each new tick interrupted the
+              // previous animation mid-curve, which read as stutter. Matching
+              // the transition to the tick rate with a linear ease keeps it
+              // moving at a constant rate instead of restarting a curve.
+              className="h-full rounded-full bg-accent-ink opacity-60 transition-[width] duration-[380ms] ease-linear"
               style={{ width: `${pct}%` }}
             />
             <div className="progress-shimmer absolute inset-0" style={{ width: `${pct}%` }} />

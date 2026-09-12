@@ -722,6 +722,9 @@ fn main() {
             commands::update_relaunch,
             commands::license_activate,
             commands::license_get_status,
+            commands::debug_read_logs,
+            commands::debug_clear_logs,
+            commands::debug_open_log_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Speusis Downloader");

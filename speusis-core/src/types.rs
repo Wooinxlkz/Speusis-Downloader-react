@@ -166,6 +166,23 @@ pub enum AccentColor {
     Slate,
 }
 
+/// A background/paper tint applied to the canvas, panels, and sunken
+/// surfaces in both light and dark mode - same idea as AccentColor, just
+/// for the neutral surfaces instead of the highlight color. "Default" is
+/// the existing palette, unchanged; the five named presets lean cool
+/// (blue/teal/violet-grey).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BackgroundStyle {
+    #[default]
+    Default,
+    ArcticFrost,
+    SlateFjord,
+    StormGlass,
+    GlacierTeal,
+    TwilightIndigo,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
@@ -179,6 +196,8 @@ pub struct AppSettings {
     pub seed_ratio: f64,
     pub theme_mode: ThemeMode,
     pub accent_color: AccentColor,
+    #[serde(default)]
+    pub background_style: BackgroundStyle,
     pub schedule_enabled: bool,
     pub schedule_start_hour: u8,
     pub schedule_start_minute: u8,
@@ -225,6 +244,7 @@ impl AppSettings {
             seed_ratio: 1.0,
             theme_mode: ThemeMode::System,
             accent_color: AccentColor::Slate,
+            background_style: BackgroundStyle::Default,
             schedule_enabled: false,
             schedule_start_hour: 9,
             schedule_start_minute: 0,
