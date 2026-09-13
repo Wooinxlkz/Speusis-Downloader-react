@@ -51,6 +51,7 @@ export const ipc = {
 
   // ---- grabber ----
   grabberScan: (url: string) => call<GrabberResult>("grabber_scan", { url }),
+  grabberScanSite: (url: string, maxPages?: number) => call<GrabberResult>("grabber_scan_site", { url, maxPages }),
 
   // ---- basket (native window) ----
   basketOpen: () => call<void>("basket_open"),

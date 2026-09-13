@@ -3,6 +3,26 @@
 mod commands;
 mod state;
 
+/// A handful of window operations (show/hide/set_focus/set_size/unminimize)
+/// can panic deep inside tao's Windows event-loop runner ("cannot move
+/// state from Destroyed") if the target window's native handle is mid-
+/// teardown - e.g. the user closed a panel dialog via Alt+F4 (or the OS
+/// tore a window down at shutdown/sleep) at the same moment a queued
+/// show/focus/resize call from this app was in flight. That's a race on
+/// the OS-level window handle itself, not something `is_visible()` or
+/// `get_webview_window` returning `Some` can reliably rule out ahead of
+/// time. Every call site that pokes an existing window goes through this
+/// instead of calling the tao/webview methods directly: worst case, one
+/// action silently no-ops instead of taking the whole app - and every
+/// in-progress download - down with it.
+pub(crate) fn safe_window_op(f: impl FnOnce()) {
+    if std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).is_err() {
+        speusis_core::debug_log::log(
+            "safe_window_op: caught a panic from a window operation (likely a destroyed window handle mid-teardown) - ignored",
+        );
+    }
+}
+
 use speusis_core::downloader_trait::Downloader;
 use speusis_core::event_bus::EventBus;
 use speusis_core::file_manager::FileManager;
@@ -163,9 +183,11 @@ fn handle_launch_args(app: &tauri::AppHandle, args: &[String]) {
             speusis_core::debug_log::log(&format!("handle_launch_args: failed to add torrent: {e}"));
         }
         if let Some(window) = app.get_webview_window("main") {
-            let _ = window.show();
-            let _ = window.unminimize();
-            let _ = window.set_focus();
+            safe_window_op(|| {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            });
         }
     });
 }
@@ -188,9 +210,11 @@ fn main() {
             // this relaunch, queue it too.
             handle_launch_args(app, &argv);
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
+                safe_window_op(|| {
+                    let _ = window.show();
+                    let _ = window.unminimize();
+                    let _ = window.set_focus();
+                });
             }
         }))
         .plugin(
@@ -259,7 +283,9 @@ fn main() {
             }
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
-                let _ = window.hide();
+                safe_window_op(|| {
+                    let _ = window.hide();
+                });
             }
         })
         .setup(|app| {
@@ -343,8 +369,22 @@ fn main() {
             // --- BitTorrent engine ---
             let torrent_data_dir = app_data_dir.join("torrent-session");
             let torrent_download_dir = std::path::PathBuf::from(&loaded_settings.download_dir);
+            // TorrentManager::new() now degrades through several fallback
+            // configs on its own (see its doc comment) - by the time an Err
+            // reaches here, every one of those has already failed, which in
+            // practice means something more fundamental than DHT/ports is
+            // wrong (e.g. torrent_download_dir itself isn't writable). That's
+            // a real reason to stop startup, but it's worth a clearly-labeled
+            // log line first since this `?` is the one that used to fire on
+            // a plain DHT hiccup and take the whole app down with it.
             let torrent_manager = tauri::async_runtime::block_on(async {
                 TorrentManager::new(torrent_data_dir, torrent_download_dir, event_bus.clone()).await
+            })
+            .map_err(|e| {
+                speusis_core::debug_log::log(&format!(
+                    "FATAL: torrent engine could not start under any fallback config: {e:#}"
+                ));
+                e
             })?;
             // Pass a type-erased copy to ProtocolDownloader so it can dispatch
             // magnet: links and Torrent-kind tasks through the same engine.
@@ -541,9 +581,11 @@ fn main() {
             /// was doing nothing.
             fn bring_main_to_front(app: &tauri::AppHandle) {
                 if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.show();
-                    let _ = win.unminimize();
-                    let _ = win.set_focus();
+                    safe_window_op(|| {
+                        let _ = win.show();
+                        let _ = win.unminimize();
+                        let _ = win.set_focus();
+                    });
                 }
             }
 
@@ -690,6 +732,7 @@ fn main() {
             commands::torrent_select_file,
             commands::torrent_create,
             commands::grabber_scan,
+            commands::grabber_scan_site,
             commands::plugin_list,
             commands::basket_open,
             commands::basket_close,

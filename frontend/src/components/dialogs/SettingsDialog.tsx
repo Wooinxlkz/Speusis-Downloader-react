@@ -374,13 +374,13 @@ const ACCENTS: { id: AccentColor; hex: string }[] = [
   { id: "teal", hex: "#2b7a78" },
 ];
 
-const BACKGROUNDS: { id: BackgroundStyle; label: string; hex: string }[] = [
-  { id: "default", label: "Default", hex: "#fbfbfa" },
-  { id: "arctic-frost", label: "Arctic Frost", hex: "#f2f6fa" },
-  { id: "slate-fjord", label: "Slate Fjord", hex: "#eef1f4" },
-  { id: "storm-glass", label: "Storm Glass", hex: "#eef0f5" },
-  { id: "glacier-teal", label: "Glacier Teal", hex: "#eef6f5" },
-  { id: "twilight-indigo", label: "Twilight Indigo", hex: "#f0eef8" },
+const BACKGROUNDS: { id: BackgroundStyle; label: string; bg: string; panel: string; line: string }[] = [
+  { id: "default", label: "Default", bg: "#fbfbfa", panel: "#f4f4f2", line: "#e3e3e0" },
+  { id: "arctic-frost", label: "Arctic Frost", bg: "#f2f6fa", panel: "#e8eef5", line: "#d2deec" },
+  { id: "slate-fjord", label: "Slate Fjord", bg: "#eef1f4", panel: "#e2e7ec", line: "#c9d3dc" },
+  { id: "storm-glass", label: "Storm Glass", bg: "#eef0f5", panel: "#e3e5ee", line: "#cbcfdf" },
+  { id: "glacier-teal", label: "Glacier Teal", bg: "#eef6f5", panel: "#e1eeec", line: "#c7ddd9" },
+  { id: "twilight-indigo", label: "Twilight Indigo", bg: "#f0eef8", panel: "#e4e0f2", line: "#cac2e3" },
 ];
 
 function AppearanceTab({ settings, update }: { settings: Settings; update: Update }) {
@@ -432,7 +432,14 @@ function AppearanceTab({ settings, update }: { settings: Settings; update: Updat
                 settings.backgroundStyle === b.id ? "border-ink" : "border-transparent hover:border-line"
               }`}
             >
-              <span className="h-6 w-full rounded-md border border-line" style={{ background: b.hex }} />
+              <span
+                className="relative block h-9 w-full overflow-hidden rounded-md border"
+                style={{ background: b.bg, borderColor: b.line }}
+              >
+                <span className="absolute inset-x-0 top-0 h-3" style={{ background: b.panel, borderBottom: `1px solid ${b.line}` }} />
+                <span className="absolute bottom-1.5 left-1.5 h-1 w-4 rounded-full" style={{ background: b.line }} />
+                <span className="absolute bottom-1.5 left-6 h-1 w-8 rounded-full opacity-60" style={{ background: b.line }} />
+              </span>
               <span className="text-[10.5px] font-medium text-muted">{b.label}</span>
             </button>
           ))}
@@ -584,25 +591,26 @@ function DebugTab() {
             Debug log{logs && logs.debug ? "" : " (empty)"}
           </button>
         </div>
-        <div className="flex gap-1.5">
-          <Button onClick={() => void refresh()} disabled={busy !== null}>
-            <RefreshCw size={12.5} className={busy === "refresh" ? "animate-spin" : ""} />
+        <div className="flex gap-1">
+          <Button small className="w-7 px-0" onClick={() => void refresh()} disabled={busy !== null} title="Refresh">
+            <RefreshCw size={11.5} className={busy === "refresh" ? "animate-spin" : ""} />
           </Button>
-          <Button onClick={() => void openFolder()} disabled={busy !== null}>
-            <FolderOpen size={12.5} />
+          <Button small onClick={() => void openFolder()} disabled={busy !== null}>
+            <FolderOpen size={11.5} />
             Open folder
           </Button>
           <Button
+            small
             onClick={() => {
               if (text) void navigator.clipboard.writeText(text);
             }}
             disabled={busy !== null || !text}
           >
-            <Copy size={12.5} />
+            <Copy size={11.5} />
             Copy
           </Button>
-          <Button danger onClick={() => void clear()} disabled={busy !== null}>
-            <Trash2 size={12.5} />
+          <Button small danger onClick={() => void clear()} disabled={busy !== null}>
+            <Trash2 size={11.5} />
             Clear
           </Button>
         </div>

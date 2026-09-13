@@ -18,13 +18,17 @@ export function GrabberDialog() {
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [wholeSite, setWholeSite] = useState(false);
+  const [maxPages, setMaxPages] = useState(20);
 
   async function scan() {
     if (!pageUrl.trim()) return;
     setScanning(true);
     setError(null);
     try {
-      const res = await ipc.grabberScan(pageUrl.trim());
+      const res = wholeSite
+        ? await ipc.grabberScanSite(pageUrl.trim(), maxPages)
+        : await ipc.grabberScan(pageUrl.trim());
       if (!res.ok) {
         setError(res.error ?? "Scan failed");
         setLinks([]);
@@ -46,7 +50,7 @@ export function GrabberDialog() {
     const q = filter.trim().toLowerCase();
     if (!q) return links;
     return links.filter(
-      (l) => l.url.toLowerCase().includes(q) || (l.text ?? "").toLowerCase().includes(q) || l.kind.toLowerCase().includes(q),
+      (l) => l.url.toLowerCase().includes(q) || l.name.toLowerCase().includes(q) || l.ext.toLowerCase().includes(q),
     );
   }, [links, filter]);
 
@@ -82,7 +86,7 @@ export function GrabberDialog() {
 
   return (
     <Modal open={open} onClose={close} width={620}>
-      <DialogHeader icon={<SearchCode size={16} />} title="Web grabber" subtitle="Scan a page for downloadable links" onClose={close} />
+      <DialogHeader icon={<SearchCode size={16} />} title="Web grabber" subtitle="Scan a page (or a whole site) for downloadable links" onClose={close} />
       <div className="flex flex-col gap-3 px-5 py-4">
         <div className="flex gap-2">
           <TextInput
@@ -96,6 +100,24 @@ export function GrabberDialog() {
             {scanning ? "Scanning…" : "Scan"}
           </Button>
         </div>
+        <label className="flex items-center gap-2 text-[11.5px] text-muted">
+          <input type="checkbox" checked={wholeSite} onChange={(e) => setWholeSite(e.target.checked)} />
+          Crawl the whole site (same domain), not just this page
+          {wholeSite && (
+            <span className="ml-auto flex items-center gap-1.5">
+              up to
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={maxPages}
+                onChange={(e) => setMaxPages(Math.min(100, Math.max(1, Number(e.target.value) || 1)))}
+                className="w-14 rounded-md border border-line bg-panel px-1.5 py-0.5 text-[11.5px] text-ink"
+              />
+              pages
+            </span>
+          )}
+        </label>
         {error && <p className="text-[11.5px] text-danger">{error}</p>}
 
         {links.length > 0 && (
@@ -120,10 +142,10 @@ export function GrabberDialog() {
                 >
                   <input type="checkbox" checked={selected.has(l.url)} onChange={() => toggle(l.url)} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[12.5px] font-medium">{l.text || l.url}</p>
+                    <p className="truncate text-[12.5px] font-medium">{l.name || l.url}</p>
                     <p className="truncate font-mono text-[10.5px] text-faint">{l.url}</p>
                   </div>
-                  <span className="flex-shrink-0 rounded bg-sunken px-1.5 py-0.5 text-[10px] uppercase text-faint">{l.kind}</span>
+                  <span className="flex-shrink-0 rounded bg-sunken px-1.5 py-0.5 text-[10px] uppercase text-faint">{l.ext}</span>
                 </label>
               ))}
             </div>

@@ -111,7 +111,7 @@ pub async fn download_add(app: AppHandle, state: State<'_, AppState>, input: Dow
                 kind: Some(DownloadKind::Torrent),
                 label: input.label.clone().or_else(|| Some("Torrent".into())),
                 speed_limit: None,
-                sequential: None,
+                sequential: input.sequential,
                 referer: None,
             };
             let task = state.scheduler.add(request, input.start.unwrap_or(true)).await;
@@ -528,12 +528,25 @@ pub async fn grabber_scan(url: String) -> Result<GrabberResult, String> {
     }
 }
 
+/// Same-site crawl version of `grabber_scan` - follows navigation links on
+/// the same host instead of stopping at one page. `max_pages` is clamped
+/// to 1..=100 inside `grab_links_from_site` regardless of what's passed.
+#[tauri::command]
+pub async fn grabber_scan_site(url: String, max_pages: Option<u32>) -> Result<GrabberResult, String> {
+    match speusis_core::web_grabber::grab_links_from_site(&url, max_pages.unwrap_or(20)).await {
+        Ok(links) => Ok(GrabberResult { ok: true, links, error: None }),
+        Err(e) => Ok(GrabberResult { ok: false, links: vec![], error: Some(e.to_string()) }),
+    }
+}
+
 // ---------- basket (Tauri window management, unrelated to speusis-core) ----------
 
 #[tauri::command]
 pub async fn basket_open(app: AppHandle) -> Result<(), String> {
     if let Some(win) = app.get_webview_window("basket") {
-        let _ = win.show();
+        crate::safe_window_op(|| {
+            let _ = win.show();
+        });
         return Ok(());
     }
     tauri::WebviewWindowBuilder::new(&app, "basket", tauri::WebviewUrl::App("basket.html".into()))
@@ -549,7 +562,9 @@ pub async fn basket_open(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub async fn basket_close(app: AppHandle) -> Result<(), String> {
     if let Some(win) = app.get_webview_window("basket") {
-        let _ = win.hide();
+        crate::safe_window_op(|| {
+            let _ = win.hide();
+        });
     }
     Ok(())
 }
@@ -591,8 +606,10 @@ pub async fn panel_open(app: AppHandle, panel: String, id: Option<String>) -> Re
     let label = format!("panel-{panel}");
 
     if let Some(win) = app.get_webview_window(&label) {
-        let _ = win.show();
-        let _ = win.set_focus();
+        crate::safe_window_op(|| {
+            let _ = win.show();
+            let _ = win.set_focus();
+        });
         return Ok(());
     }
 
@@ -644,16 +661,34 @@ pub async fn panel_resize(app: AppHandle, panel: String, width: f64, height: f64
     // making every dialog occupy the initial placeholder dimensions.
     let width = width.clamp(320.0, 1200.0);
     let height = height.clamp(220.0, 1000.0);
-    win.set_size(tauri::Size::Logical(tauri::LogicalSize::new(width, height)))
-        .map_err(|e| e.to_string())?;
+    // set_size/is_visible/show/set_focus can panic deep in tao's Windows
+    // event loop if this window's native handle is mid-teardown (see
+    // safe_window_op's doc comment in main.rs) - catch_unwind around the
+    // whole sequence so a stale handle degrades to "this resize no-ops"
+    // instead of taking the app down.
+    let resize_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        win.set_size(tauri::Size::Logical(tauri::LogicalSize::new(width, height)))
+    }));
+    match resize_result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => return Err(e.to_string()),
+        Err(_) => {
+            speusis_core::debug_log::log(
+                "panel_resize: caught a panic from set_size (likely a destroyed window handle) - ignored",
+            );
+            return Ok(());
+        }
+    }
 
     // First resize call after the window was built hidden means the content
     // is now measured and correctly sized - reveal it now instead of at the
     // guessed placeholder size, so there's no visible pop-then-jump.
-    if !win.is_visible().unwrap_or(true) {
-        let _ = win.show();
-        let _ = win.set_focus();
-    }
+    crate::safe_window_op(|| {
+        if !win.is_visible().unwrap_or(true) {
+            let _ = win.show();
+            let _ = win.set_focus();
+        }
+    });
     Ok(())
 }
 
@@ -675,7 +710,9 @@ pub async fn panel_close(app: AppHandle, panel: String) -> Result<(), String> {
         .ok_or_else(|| format!("Unknown native panel: {panel}"))?;
     let label = format!("panel-{panel}");
     if let Some(win) = app.get_webview_window(&label) {
-        let _ = win.hide();
+        crate::safe_window_op(|| {
+            let _ = win.hide();
+        });
     }
     Ok(())
 }

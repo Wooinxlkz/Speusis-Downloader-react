@@ -140,8 +140,9 @@ export interface RssFeed {
 
 export interface GrabLink {
   url: string;
-  text: string | null;
-  kind: string;
+  name: string;
+  ext: string;
+  sizeHint: number | null;
 }
 export interface GrabberResult {
   ok: boolean;

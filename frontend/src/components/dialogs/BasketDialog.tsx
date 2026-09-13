@@ -148,7 +148,10 @@ export function BasketDialog() {
         subtitle={status ?? (recent.length > 0 ? `${recent.length} recent` : "Drop links to add them")}
         onClose={close}
       />
-      <div className="flex h-[420px] flex-col gap-2.5 p-3">
+      {/* max-h, not h: hugs actual content (just the drop zone when the
+          basket is empty) and only grows - capped at 420px, with the
+          Recent list scrolling internally past that - as entries pile up. */}
+      <div className="flex max-h-[420px] flex-col gap-2.5 p-3">
         {!formOpen ? (
           <div
             onDragEnter={onDragEnter}

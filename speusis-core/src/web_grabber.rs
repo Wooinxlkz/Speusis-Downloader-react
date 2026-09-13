@@ -100,3 +100,108 @@ pub fn grab_links_from_html(html: &str, base_url: &str) -> anyhow::Result<Vec<Gr
     let base = Url::parse(base_url)?;
     Ok(extract_links(html, &base))
 }
+
+/// A link worth following further (same-site navigation), as opposed to a
+/// downloadable file link. Same host as the page we started from, and
+/// either no extension at all (most routed pages: /articles/123) or a
+/// page-ish extension - specifically excludes anything already recognized
+/// as downloadable so a direct file link never gets "crawled" as if it
+/// were a page.
+fn is_crawlable_page(url: &Url, start_host: &str) -> bool {
+    if url.host_str() != Some(start_host) {
+        return false;
+    }
+    if !matches!(url.scheme(), "http" | "https") {
+        return false;
+    }
+    let path = url.path().to_lowercase();
+    match path.rsplit('.').next() {
+        Some(ext) if path.contains('.') => {
+            matches!(ext, "html" | "htm" | "php" | "asp" | "aspx" | "jsp" | "shtml")
+        }
+        _ => true,
+    }
+}
+
+/// Crawls same-host pages breadth-first starting from `start_url`, up to
+/// `max_pages` pages total (including the start page), collecting every
+/// downloadable link found along the way - `grab_links_from_url` extended
+/// to follow same-site navigation instead of stopping at one page. Mirrors
+/// FDM's "Site Explorer" / IDM's "Site Grabber" at a deliberately smaller
+/// scope: same host only, no configurable crawl depth yet, and a hard page
+/// cap so a mistyped or huge site can't turn into an unbounded crawl.
+/// A page that fails to fetch or parse is skipped rather than aborting the
+/// whole crawl, since one dead link on a large site shouldn't lose
+/// everything already found.
+pub async fn grab_links_from_site(start_url: &str, max_pages: u32) -> anyhow::Result<Vec<GrabLink>> {
+    let start = Url::parse(start_url)?;
+    let host = start
+        .host_str()
+        .ok_or_else(|| anyhow::anyhow!("URL has no host to restrict the crawl to"))?
+        .to_string();
+    let max_pages = max_pages.clamp(1, 100) as usize;
+
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(20)).no_proxy().build()?;
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        HeaderName::from_static("user-agent"),
+        HeaderValue::from_static(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        ),
+    );
+    headers.insert(
+        HeaderName::from_static("accept"),
+        HeaderValue::from_static("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
+    );
+
+    let mut visited: HashSet<String> = HashSet::new();
+    let mut queue: std::collections::VecDeque<Url> = std::collections::VecDeque::new();
+    queue.push_back(start);
+
+    let mut all_links: Vec<GrabLink> = Vec::new();
+    let mut seen_link_urls: HashSet<String> = HashSet::new();
+
+    while let Some(page_url) = queue.pop_front() {
+        if visited.len() >= max_pages {
+            break;
+        }
+        let key = page_url.to_string();
+        if !visited.insert(key) {
+            continue;
+        }
+
+        let fetched = client.get(page_url.clone()).headers(headers.clone()).send().await;
+        let html = match fetched {
+            Ok(res) if res.status().is_success() => match res.text().await {
+                Ok(html) => html,
+                Err(_) => continue,
+            },
+            _ => continue,
+        };
+
+        for link in extract_links(&html, &page_url) {
+            if seen_link_urls.insert(link.url.clone()) {
+                all_links.push(link);
+            }
+        }
+
+        if visited.len() < max_pages {
+            for cap in href_pattern().captures_iter(&html) {
+                let raw = cap[1].trim();
+                if raw.is_empty() || raw.starts_with("javascript:") || raw.starts_with('#') {
+                    continue;
+                }
+                let Ok(resolved) = page_url.join(raw) else { continue };
+                if is_crawlable_page(&resolved, &host) && !visited.contains(&resolved.to_string()) {
+                    queue.push_back(resolved);
+                }
+            }
+        }
+
+        // Considerate default pace between page fetches, not a bare
+        // as-fast-as-possible scraping loop.
+        tokio::time::sleep(Duration::from_millis(150)).await;
+    }
+
+    Ok(all_links)
+}

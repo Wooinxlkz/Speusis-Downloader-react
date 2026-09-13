@@ -112,29 +112,101 @@ impl TorrentManager {
     /// Create the shared librqbit session.
     /// `data_dir`     – where librqbit writes DHT state / session persistence.
     /// `download_dir` – default output folder (overridable per-task).
+    ///
+    /// This used to be a single `Session::new_with_opts(..)?` inside
+    /// main.rs's `.setup()` hook - and a `.setup()` hook returning `Err`
+    /// makes Tauri hard-panic the *entire app*, not just torrents. A
+    /// leftover/corrupted DHT state file from a previous crash (or the
+    /// listen port range already being in use) was enough to take down
+    /// HTTP and FTP downloads too, on every subsequent launch, since the
+    /// broken state file never gets cleaned up on its own.
+    ///
+    /// So this now degrades step by step instead of failing outright:
+    /// full DHT+persistence+fixed port -> non-persistent DHT (sidesteps a
+    /// bad state file) -> non-persistent DHT with no fixed inbound port
+    /// (sidesteps the port being taken) -> DHT off entirely, tracker/magnet
+    /// peers only. Each downgrade is logged so it's visible in Settings ->
+    /// Debug rather than silent. Only if every rung fails (which would mean
+    /// something more fundamental, like data_dir not being writable at
+    /// all - in which case downloads wouldn't work anyway) does this still
+    /// return Err.
     pub async fn new(
         data_dir: PathBuf,
         download_dir: PathBuf,
         event_bus: EventBus,
     ) -> anyhow::Result<Arc<Self>> {
         tokio::fs::create_dir_all(&data_dir).await.ok();
-        let opts = SessionOptions {
-            disable_dht: false,
-            disable_dht_persistence: false,
-            listen_port_range: Some(6881..6890),
-            enable_upnp_port_forwarding: false,
-            ..Default::default()
-        };
-        let session = Session::new_with_opts(download_dir, opts)
-            .await
-            .map_err(|e| anyhow::anyhow!("librqbit session: {e}"))?;
-        Ok(Arc::new(Self {
-            session,
-            event_bus,
-            tasks: AsyncMutex::new(HashMap::new()),
-            cancels: StdMutex::new(HashMap::new()),
-            file_selections: StdMutex::new(HashMap::new()),
-        }))
+
+        let rungs: [(&str, SessionOptions); 4] = [
+            (
+                "full (persistent DHT, fixed port range)",
+                SessionOptions {
+                    disable_dht: false,
+                    disable_dht_persistence: false,
+                    listen_port_range: Some(6881..6890),
+                    enable_upnp_port_forwarding: false,
+                    ..Default::default()
+                },
+            ),
+            (
+                "non-persistent DHT, fixed port range",
+                SessionOptions {
+                    disable_dht: false,
+                    disable_dht_persistence: true,
+                    listen_port_range: Some(6881..6890),
+                    enable_upnp_port_forwarding: false,
+                    ..Default::default()
+                },
+            ),
+            (
+                "non-persistent DHT, no fixed inbound port",
+                SessionOptions {
+                    disable_dht: false,
+                    disable_dht_persistence: true,
+                    listen_port_range: None,
+                    enable_upnp_port_forwarding: false,
+                    ..Default::default()
+                },
+            ),
+            (
+                "DHT disabled, no fixed inbound port",
+                SessionOptions {
+                    disable_dht: true,
+                    disable_dht_persistence: true,
+                    listen_port_range: None,
+                    enable_upnp_port_forwarding: false,
+                    ..Default::default()
+                },
+            ),
+        ];
+
+        let mut last_err = None;
+        for (i, (label, opts)) in rungs.into_iter().enumerate() {
+            match Session::new_with_opts(download_dir.clone(), opts).await {
+                Ok(session) => {
+                    if i > 0 {
+                        crate::debug_log::log(&format!(
+                            "TorrentManager::new: degraded to '{label}' after {i} failed attempt(s) - see earlier log lines for why"
+                        ));
+                    }
+                    return Ok(Arc::new(Self {
+                        session,
+                        event_bus,
+                        tasks: AsyncMutex::new(HashMap::new()),
+                        cancels: StdMutex::new(HashMap::new()),
+                        file_selections: StdMutex::new(HashMap::new()),
+                    }));
+                }
+                Err(e) => {
+                    crate::debug_log::log(&format!("TorrentManager::new: '{label}' failed: {e:#}"));
+                    last_err = Some(e);
+                }
+            }
+        }
+        Err(anyhow::anyhow!(
+            "librqbit session: {}",
+            last_err.map(|e| e.to_string()).unwrap_or_else(|| "unknown error".to_string())
+        ))
     }
 
     // -- File-selection API (called from commands.rs) -----------------------
@@ -238,9 +310,9 @@ impl TorrentManager {
         task: &TaskHandle,
         cancel_rx: oneshot::Receiver<()>,
     ) -> anyhow::Result<()> {
-        let (id, url, target_dir) = {
+        let (id, url, target_dir, sequential) = {
             let t = task.lock().await;
-            (t.id.clone(), t.request.url.clone(), t.request.target_dir.clone())
+            (t.id.clone(), t.request.url.clone(), t.request.target_dir.clone(), t.request.sequential.unwrap_or(false))
         };
         crate::debug_log::log(&format!("torrent.run: id={id} url={url}"));
 
@@ -268,7 +340,7 @@ impl TorrentManager {
 
         let add_opts = AddTorrentOptions {
             overwrite: true,
-            only_files,
+            only_files: only_files.clone(),
             output_folder: Some(target_dir.clone()),
             ..Default::default()
         };
@@ -345,6 +417,58 @@ impl TorrentManager {
                 size: total_size,
             }));
         }
+
+        // --- Optional: sequential download for the primary file ---
+        // librqbit has no direct "sequential mode" flag (checked its public
+        // API - no piece-priority setter on AddTorrentOptions or on the
+        // torrent handle itself), but it does reprioritize pieces near
+        // whatever position something reads through its streaming API.
+        // Driving that read cursor from front to back ourselves - without
+        // anything actually consuming the bytes, since the normal download
+        // path already writes completed pieces to disk on its own - is the
+        // supported way to get "fetch this file's pieces in order" instead
+        // of librqbit's default piece selection. Scoped to the first
+        // selected file only, not every file in a multi-file torrent in
+        // sequence: the real case this serves is "let me start playing
+        // this video/audio file while the rest of the torrent finishes,"
+        // which only ever needs the one file someone's about to open.
+        struct AbortOnDrop(Option<tokio::task::JoinHandle<()>>);
+        impl Drop for AbortOnDrop {
+            fn drop(&mut self) {
+                if let Some(h) = self.0.take() {
+                    h.abort();
+                }
+            }
+        }
+        let _sequential_guard = AbortOnDrop(if sequential {
+            let target_file_id = only_files.as_ref().and_then(|v| v.first().copied()).unwrap_or(0);
+            let handle_for_stream = Arc::clone(&handle);
+            let id_for_log = id.clone();
+            Some(tokio::spawn(async move {
+                let mut stream = match handle_for_stream.stream(target_file_id) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        crate::debug_log::log(&format!(
+                            "torrent {id_for_log}: sequential stream setup failed for file {target_file_id}: {e}"
+                        ));
+                        return;
+                    }
+                };
+                let mut buf = vec![0u8; 256 * 1024];
+                loop {
+                    match tokio::io::AsyncReadExt::read(&mut stream, &mut buf).await {
+                        Ok(0) => break, // EOF - whole file fetched in order
+                        Ok(_) => continue,
+                        Err(e) => {
+                            crate::debug_log::log(&format!("torrent {id_for_log}: sequential read stopped: {e}"));
+                            break;
+                        }
+                    }
+                }
+            }))
+        } else {
+            None
+        });
 
         // Register handle so external calls (get_file_entries, update_file_selection) work
         self.tasks.lock().await.insert(id.clone(), TaskEntry { handle: Arc::clone(&handle) });

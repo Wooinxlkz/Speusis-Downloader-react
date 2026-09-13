@@ -124,9 +124,16 @@ export function Button({
   children,
   primary,
   danger,
+  small,
   ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { primary?: boolean; danger?: boolean }) {
-  const base = "h-8 rounded-lg px-3.5 text-[12.5px] font-medium transition-colors";
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { primary?: boolean; danger?: boolean; small?: boolean }) {
+  // inline-flex + items-center is load-bearing here, not decorative: Tailwind's
+  // preflight sets svg { display: block }, so an icon + text child without an
+  // explicit flex row stack vertically (icon on top, text below) instead of
+  // sitting side by side.
+  const base = small
+    ? "inline-flex h-7 items-center justify-center gap-1 rounded-lg px-2 text-[11px] font-medium transition-colors"
+    : "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-3.5 text-[12.5px] font-medium transition-colors";
   const style = primary
     ? "border border-invert bg-invert text-invert-ink hover:opacity-90"
     : danger

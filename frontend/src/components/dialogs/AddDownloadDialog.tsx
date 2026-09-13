@@ -14,8 +14,10 @@ export function AddDownloadDialog() {
   const [url, setUrl] = useState("");
   const [filename, setFilename] = useState("");
   const [label, setLabel] = useState("");
+  const [sequential, setSequential] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isMagnet = url.trim().toLowerCase().startsWith("magnet:");
 
   async function submit(start: boolean) {
     if (!url.trim()) return;
@@ -26,12 +28,14 @@ export function AddDownloadDialog() {
         url: url.trim(),
         filename: filename.trim() || undefined,
         label: label.trim() || undefined,
+        sequential: isMagnet ? sequential : undefined,
         start,
       });
       await refresh();
       setUrl("");
       setFilename("");
       setLabel("");
+      setSequential(false);
       close();
     } catch (e) {
       setError(String(e));
@@ -53,6 +57,12 @@ export function AddDownloadDialog() {
         />
         <TextInput placeholder="Save as (optional)" value={filename} onChange={(e) => setFilename(e.target.value)} />
         <TextInput placeholder="Label — e.g. Work, Movies (optional)" value={label} onChange={(e) => setLabel(e.target.value)} />
+        {isMagnet && (
+          <label className="flex items-center gap-2 text-[11.5px] text-muted">
+            <input type="checkbox" checked={sequential} onChange={(e) => setSequential(e.target.checked)} />
+            Sequential download — fetch pieces in order so you can start playing before it finishes
+          </label>
+        )}
         {error && <p className="text-[11.5px] text-danger">{error}</p>}
         <div className="mt-1.5 flex justify-end gap-2">
           <Button onClick={() => submit(false)} disabled={busy || !url.trim()}>
